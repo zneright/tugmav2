@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --text: #4b5563;
+  --text-h: #111827;
+  --bg: #f8f9fa;
+  /* Soft off-white background! */
+  --border: #e5e7eb;
+  --code-bg: #f3f4f6;
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 14px/150% var(--sans);
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root.dark {
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --bg: #09090b;
+  /* Deep dark mode background */
+  --border: #27272a;
+  --code-bg: #18181b;
+}
+
+body {
+  margin: 0;
+  /* This ensures the body takes the soft off-white color */
+  @apply transition-colors duration-300 ease-in-out bg-[#f8f9fa] dark:bg-[#09090b];
+}
+
+/* Custom Scrollbar for the History Sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-zinc-200 dark:bg-zinc-800 rounded-full;
+}

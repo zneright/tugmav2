@@ -1,0 +1,18 @@
+<?php
+
+use CodeIgniter\Router\RouteCollection;
+
+/**
+ * @var RouteCollection $routes
+ */
+$routes->get('/', 'Home::index');
+$routes->get('api/test', 'Api::test');
+
+$routes->options('api/users/register', static function() {
+    $response = response();
+    $response->setStatusCode(204);
+    $response->setHeader('Access-Control-Allow-Origin', '*');
+    $response->setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    $response->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    return $response;
+});
