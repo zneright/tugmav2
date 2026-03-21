@@ -168,7 +168,6 @@ export default function EmployerNotifications() {
 
     setRecipientModal({ isOpen: true, data: [], loading: true });
     try {
-      // 🔥 FIX: Removed the fragile &message parameter. Title and Sender UID are enough to identify the blast!
       const res = await fetch(`http://localhost:8080/api/notifications/recipients?sender_uid=${uid}&title=${encodeURIComponent(n.title)}`);
 
       if (res.ok) {
@@ -335,7 +334,7 @@ export default function EmployerNotifications() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-3">
-            <Bell className="text-purple-600" /> Communications
+            <Bell className="text-purple-600" /> Notifications
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Manage your inbox and review messages sent to applicants.

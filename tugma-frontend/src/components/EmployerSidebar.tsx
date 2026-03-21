@@ -8,8 +8,7 @@ interface SidebarProps {
 }
 
 export default function EmployerSidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isMessagesMenuOpen, setIsMessagesMenuOpen] = useState(false); // Added state for Messages submenu
+  const [isMessagesMenuOpen, setIsMessagesMenuOpen] = useState(false); // Kept only the Messages submenu
 
   const navItems = [
     { to: '/employer/dashboard', icon: <LayoutDashboard size={20} />, label: 'Overview' },
@@ -17,7 +16,7 @@ export default function EmployerSidebar({ isOpen, setIsOpen }: SidebarProps) {
     { to: '/employer/applicants', icon: <Users size={20} />, label: 'Applicants' },
     { to: '/employer/messages', icon: <MessageSquare size={20} />, label: 'Messages' }, // Added Messages
     { to: '/employer/notifications', icon: <Bell size={20} />, label: 'Notifications' },
-    { to: '/employer/profile', icon: <Building2 size={20} />, label: 'Company Profile' },
+    { to: '/employer/profile', icon: <Building2 size={20} />, label: 'Company Profile' }, // Standard direct link
     { to: '/employer/help', icon: <HelpCircle size={20} />, label: 'Help' },
   ];
 
@@ -25,7 +24,7 @@ export default function EmployerSidebar({ isOpen, setIsOpen }: SidebarProps) {
     <>
       {/* Mobile Dark Overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-zinc-900/50 dark:bg-black/50 z-40 md:hidden transition-opacity"
           onClick={() => setIsOpen(false)}
         />
@@ -47,39 +46,6 @@ export default function EmployerSidebar({ isOpen, setIsOpen }: SidebarProps) {
         {/* Main Navigation */}
         <nav className="flex-1 py-6 px-3 space-y-1 min-w-[16rem] overflow-y-auto custom-scrollbar">
           {navItems.map((item, index) => {
-            
-            // --- COMPANY PROFILE SUBMENU ---
-            if (item.label === 'Company Profile') {
-              return (
-                <div key={index} className="flex flex-col">
-                  <button
-                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md transition-colors text-sm font-medium ${
-                      isProfileMenuOpen 
-                        ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-900 dark:text-white' 
-                        : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.icon}
-                      {item.label}
-                    </div>
-                    <ChevronDown size={16} className={`transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isProfileMenuOpen ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-                    <div className="flex flex-col ml-[22px] pl-4 border-l border-zinc-200 dark:border-zinc-800/80 space-y-1">
-                      <NavLink to="/employer/profile" onClick={() => { if (window.innerWidth < 768) setIsOpen(false) }} className={({ isActive }) => `block px-3 py-2 rounded-md transition-colors text-sm font-medium ${isActive ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'}`}>
-                        Edit Profile
-                      </NavLink>
-                      <NavLink to="/employer/settings" onClick={() => { if (window.innerWidth < 768) setIsOpen(false) }} className={({ isActive }) => `block px-3 py-2 rounded-md transition-colors text-sm font-medium ${isActive ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'}`}>
-                        Team Settings
-                      </NavLink>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
 
             // --- MESSAGES SUBMENU ---
             if (item.label === 'Messages') {
@@ -87,11 +53,10 @@ export default function EmployerSidebar({ isOpen, setIsOpen }: SidebarProps) {
                 <div key={index} className="flex flex-col">
                   <button
                     onClick={() => setIsMessagesMenuOpen(!isMessagesMenuOpen)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md transition-colors text-sm font-medium ${
-                      isMessagesMenuOpen 
-                        ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-900 dark:text-white' 
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md transition-colors text-sm font-medium ${isMessagesMenuOpen
+                        ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-900 dark:text-white'
                         : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       {item.icon}
@@ -99,7 +64,7 @@ export default function EmployerSidebar({ isOpen, setIsOpen }: SidebarProps) {
                     </div>
                     <ChevronDown size={16} className={`transition-transform duration-200 ${isMessagesMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
-                  
+
                   <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isMessagesMenuOpen ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
                     <div className="flex flex-col ml-[22px] pl-4 border-l border-zinc-200 dark:border-zinc-800/80 space-y-1">
                       <NavLink to="/employer/messages" onClick={() => { if (window.innerWidth < 768) setIsOpen(false) }} className={({ isActive }) => `block px-3 py-2 rounded-md transition-colors text-sm font-medium ${isActive ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'}`}>
@@ -114,9 +79,14 @@ export default function EmployerSidebar({ isOpen, setIsOpen }: SidebarProps) {
               );
             }
 
-            // --- NORMAL LINKS ---
+            // --- NORMAL LINKS (Includes Company Profile now) ---
             return (
-              <NavLink key={index} to={item.to} onClick={() => { if (window.innerWidth < 768) setIsOpen(false) }} className={({ isActive }) => `w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all text-sm font-medium ${isActive ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'}`}>
+              <NavLink
+                key={index}
+                to={item.to}
+                onClick={() => { if (window.innerWidth < 768) setIsOpen(false) }}
+                className={({ isActive }) => `w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all text-sm font-medium ${isActive ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white'}`}
+              >
                 {item.icon}
                 {item.label}
               </NavLink>
