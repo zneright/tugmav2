@@ -1,0 +1,287 @@
+import { useState, useEffect } from 'react';
+import {
+  Briefcase, XOctagon, Eye, Clock,
+  Sparkles, Target, TrendingUp, Award,
+  CheckCircle2, BarChart3, Loader2, ArrowUpRight, PlayCircle
+} from 'lucide-react';
+import { auth } from '../../firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
+import StatCard from '../../components/StatCard';
+
+export default function Dashboard() {
+  const [uid, setUid] = useState<string | null>(null);
+
+  const [stats, setStats] = useState({
+    applied: 0,
+    declined: 0,
+    viewed: 0,
+    pending: 0,
+    shortlisted: 0,
+    hired: 0,
+    reviewed: 0
+  });
+
+  const [ojtData, setOjtData] = useState({
+    required: 450,
+    completed: 0,
+    status: 'Not Started'
+  });
+
+  const [profileInfo, setProfileInfo] = useState({
+    topSkill: 'Loading...',
+    course: 'Student'
+  });
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUid(user.uid);
+        fetchDashboardData(user.uid);
+      } else {
+        setIsLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const fetchDashboardData = async (userUid: string) => {
+    try {
+      const [statsRes, profileRes] = await Promise.all([
+        fetch(`http://localhost:8080/api/interactions/dashboard/${userUid}`),
+        fetch(`http://localhost:8080/api/users/profile/${userUid}`)
+      ]);
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+      }
+
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+
+        // Process OJT Data
+        if (profileData.ojt) {
+          const ojt = typeof profileData.ojt === 'string' ? JSON.parse(profileData.ojt) : profileData.ojt;
+          setOjtData({
+            required: ojt.requiredHours || 450,
+            completed: ojt.completedHours || 0,
+            status: ojt.status || 'Actively Looking'
+          });
+        }
+
+        // Process Skills for Insights
+        let parsedSkills: string[] = [];
+        try {
+          parsedSkills = typeof profileData.skills === 'string' ? JSON.parse(profileData.skills) : (profileData.skills || []);
+        } catch (e) { parsedSkills = []; }
+
+        setProfileInfo({
+          course: profileData.course || 'Information Technology',
+          topSkill: parsedSkills.length > 0 ? parsedSkills[0] : 'General Skills'
+        });
+      }
+    } catch (error) {
+      console.error("Dashboard error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const progressPercentage = Math.min(100, Math.round((ojtData.completed / ojtData.required) * 100)) || 0;
+  const activePending = stats.pending + stats.reviewed;
+
+  // 🔥 THE MAGIC BOOLEAN: Changes the whole UI if they are hired 🔥
+  const isHired = stats.hired > 0 || ojtData.status === 'In Progress' || ojtData.status === 'Completed';
+
+  if (isLoading) return <div className="flex justify-center items-center h-96"><Loader2 className="animate-spin text-purple-600" size={40} /></div>;
+
+  return (
+    <div className="space-y-6 fade-in pb-10">
+
+      {/* WELCOME HERO (Dynamically changes color if hired!) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className={`lg:col-span-8 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl border transition-colors duration-700 ${isHired
+            ? 'bg-gradient-to-br from-emerald-900 to-zinc-950 border-emerald-800 shadow-emerald-900/20'
+            : 'bg-gradient-to-br from-zinc-900 to-black border-zinc-800'
+          }`}>
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-4">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${isHired ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                }`}>
+                {isHired ? <CheckCircle2 size={12} /> : <Sparkles size={12} />}
+                {isHired ? 'OJT Active' : 'Live Dashboard'}
+              </span>
+            </div>
+
+            <h1 className="text-4xl font-black mb-2 tracking-tight">
+              {isHired ? 'Congratulations! 🎉' : 'System Status: Active'}
+            </h1>
+
+            <p className="text-zinc-400 font-medium max-w-md text-lg">
+              {isHired ? (
+                <span>You are officially hired! Your priority is now completing your <strong className="text-white">{ojtData.required} hour</strong> requirement. Let's get to work!</span>
+              ) : activePending > 0 ? (
+                <span>You currently have <span className="text-white underline decoration-purple-500 underline-offset-4">{activePending} applications</span> awaiting review by employers.</span>
+              ) : (
+                <span>You have explored <span className="text-white font-bold">{stats.viewed}</span> jobs. Start applying to secure your OJT!</span>
+              )}
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-4">
+              {isHired ? (
+                // Show OJT focus stats if hired
+                <>
+                  <div className="bg-emerald-950/50 backdrop-blur-md rounded-2xl p-4 border border-emerald-800/50 min-w-[140px]">
+                    <p className="text-[10px] uppercase font-black text-emerald-500/70 mb-1">Hours Logged</p>
+                    <p className="text-2xl font-black text-emerald-400">{ojtData.completed} <span className="text-sm text-emerald-600">hrs</span></p>
+                  </div>
+                  <div className="bg-emerald-950/50 backdrop-blur-md rounded-2xl p-4 border border-emerald-800/50 min-w-[140px]">
+                    <p className="text-[10px] uppercase font-black text-emerald-500/70 mb-1">Hours Remaining</p>
+                    <p className="text-2xl font-black text-white">{Math.max(0, ojtData.required - ojtData.completed)} <span className="text-sm text-zinc-500">hrs</span></p>
+                  </div>
+                </>
+              ) : (
+                // Show Application focus stats if NOT hired
+                <>
+                  <div className="bg-zinc-800/50 backdrop-blur-md rounded-2xl p-4 border border-zinc-700 min-w-[140px]">
+                    <p className="text-[10px] uppercase font-black text-zinc-500 mb-1">Conversion Rate</p>
+                    <p className="text-2xl font-black">{stats.applied > 0 ? Math.round(((stats.shortlisted + stats.hired) / stats.applied) * 100) : 0}%</p>
+                  </div>
+                  <div className="bg-zinc-800/50 backdrop-blur-md rounded-2xl p-4 border border-zinc-700 min-w-[140px]">
+                    <p className="text-[10px] uppercase font-black text-zinc-500 mb-1">Total Apps</p>
+                    <p className="text-2xl font-black">{stats.applied}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="absolute right-[-10%] top-[-10%] opacity-20 rotate-12 pointer-events-none">
+            {isHired ? <CheckCircle2 size={300} className="text-emerald-500" /> : <BarChart3 size={300} className="text-purple-600" />}
+          </div>
+        </div>
+
+        {/* OJT PROGRESS GAUGE (Transforms into a massive CTA if hired) */}
+        <div className={`lg:col-span-4 bg-white dark:bg-zinc-900 border rounded-3xl p-6 shadow-sm flex flex-col justify-between transition-all duration-500 ${isHired ? 'border-emerald-200 dark:border-emerald-500/30 shadow-emerald-500/10' : 'border-zinc-200 dark:border-zinc-800'
+          }`}>
+          <div>
+            <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1">
+              <Target className={isHired ? "text-emerald-500" : "text-purple-500"} size={18} />
+              {isHired ? 'Active OJT Status' : 'OJT Requirement'}
+            </h3>
+            <p className="text-[11px] text-zinc-500 font-medium mb-6">Tracking your graduation eligibility</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-end">
+              <p className="text-3xl font-black text-zinc-900 dark:text-white">{ojtData.completed} <span className="text-sm font-medium text-zinc-400">/ {ojtData.required}h</span></p>
+              <div className="flex flex-col items-end">
+                <span className={`text-xs font-black px-2 py-0.5 rounded mb-1 ${isHired ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10' : 'text-purple-600 bg-purple-50 dark:bg-purple-500/10'}`}>
+                  {progressPercentage}%
+                </span>
+              </div>
+            </div>
+
+            <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-4 rounded-full overflow-hidden p-1 border border-zinc-200 dark:border-zinc-700">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ${isHired ? 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-gradient-to-r from-purple-600 to-indigo-500 shadow-[0_0_15px_rgba(147,51,234,0.3)]'}`}
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+
+            {isHired ? (
+              // Replace the tiny status text with a massive button to the Tracker if hired
+              <button
+                onClick={() => window.location.href = '/student/ojt-tracker'} // 👈 Adjust this route to match your actual tracker URL
+                className="w-full mt-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95"
+              >
+                <PlayCircle size={18} /> Launch OJT Workspace
+              </button>
+            ) : (
+              <p className="text-[11px] text-center font-bold text-zinc-400 uppercase tracking-widest pt-2">{ojtData.status}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* STAT CARDS (Application history) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon={<Briefcase size={20} />} title="Applied" value={stats.applied.toString()} color="text-blue-500" />
+        <StatCard icon={<Award size={20} />} title="Shortlisted" value={stats.shortlisted.toString()} color="text-amber-500" />
+        <StatCard icon={<Clock size={20} />} title="Pending" value={activePending.toString()} color="text-purple-500" />
+        <StatCard icon={<XOctagon size={20} />} title="Declined" value={stats.declined.toString()} color="text-red-500" />
+      </div>
+
+      {/* FUNNEL & ANALYTICS */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+          <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-8">
+            <BarChart3 className={isHired ? "text-zinc-400" : "text-blue-500"} size={18} />
+            {isHired ? 'Past Application History' : 'Application Pipeline'}
+          </h3>
+
+          {stats.applied === 0 ? (
+            <div className="py-10 text-center text-zinc-500">
+              <BarChart3 size={40} className="mx-auto text-zinc-300 dark:text-zinc-700 mb-3" />
+              <p className="font-bold text-zinc-700 dark:text-zinc-300">No data yet.</p>
+              <p className="text-sm mt-1">Submit your first application to see your funnel.</p>
+            </div>
+          ) : (
+            <div className={`space-y-6 ${isHired ? 'opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500' : ''}`}>
+              {[
+                { label: 'Total Applications', value: stats.applied, color: 'bg-zinc-200 dark:bg-zinc-700', w: '100%' },
+                { label: 'Shortlisted for Interview', value: stats.shortlisted, color: 'bg-amber-400', w: `${(stats.shortlisted / stats.applied) * 100}%` },
+                { label: 'Successfully Hired', value: stats.hired, color: 'bg-emerald-500', w: `${(stats.hired / stats.applied) * 100}%` },
+                { label: 'Applications Declined', value: stats.declined, color: 'bg-red-400', w: `${(stats.declined / stats.applied) * 100}%` },
+              ].map((item) => (
+                <div key={item.label} className="group">
+                  <div className="flex justify-between text-xs font-black uppercase tracking-tight text-zinc-500 mb-2 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                    <span>{item.label}</span>
+                    <span>{item.value}</span>
+                  </div>
+                  <div className="w-full bg-zinc-50 dark:bg-zinc-800/50 h-3 rounded-full overflow-hidden border border-zinc-100 dark:border-zinc-800">
+                    <div className={`${item.color} h-full rounded-full transition-all duration-1000 shadow-sm`} style={{ width: item.w }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* MARKET DATA / QUICK LINKS */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex-1">
+            <h3 className="font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+              <TrendingUp className="text-emerald-500" size={18} /> Profile Highlights
+            </h3>
+            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-zinc-500 uppercase">Your Top Skill</p>
+                <ArrowUpRight size={14} className="text-emerald-500" />
+              </div>
+
+              <p className="text-xl font-black text-zinc-900 dark:text-white capitalize">{profileInfo.topSkill}</p>
+              <p className="text-xs text-zinc-500 mt-1">Make sure to highlight this in interviews.</p>
+            </div>
+          </div>
+
+          {/* Dynamic Sync Card */}
+          <div className={`${isHired ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-purple-600 shadow-purple-500/20'} rounded-3xl p-6 text-white shadow-xl transition-colors duration-700`}>
+            <h3 className="font-bold mb-2 flex items-center gap-2"><CheckCircle2 size={18} /> Everything is Live</h3>
+            <p className="text-xs text-white/80 leading-relaxed mb-4">
+              Your dashboard is fully synced. Every time an employer reviews your profile or shortlists you, these numbers update instantly.
+            </p>
+            <button
+              onClick={() => window.location.href = '/student/ojt-tracker'} // 👈 Adjust this route!
+              className={`w-full py-2.5 bg-white rounded-xl text-sm font-black hover:bg-opacity-90 transition-colors ${isHired ? 'text-emerald-700' : 'text-purple-600'}`}
+            >
+              {isHired ? 'Print OJT DTR Report' : 'Go to OJT Tracker'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
