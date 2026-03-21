@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Briefcase, Users, Star, Eye, Plus,
+  Briefcase, Users, Star, Plus,
   MoreVertical, ChevronRight, CheckCircle2, Clock, XCircle,
   X, ImageIcon, Check, Loader2
 } from 'lucide-react';
@@ -17,12 +17,12 @@ export default function EmployerDashboard() {
   const [skills, setSkills] = useState<string[]>(['React', 'PHP']);
   const [allowanceType, setAllowanceType] = useState('With Allowance');
 
-  // --- REAL DATA STATE ---
+  // --- REAL DATA STATE (Upgraded Stats) ---
   const [dashboardStats, setDashboardStats] = useState({
     activeJobs: 0,
     totalApplicants: 0,
     shortlisted: 0,
-    views: 0
+    hired: 0 // 🔥 Replaced fake views with real Hired count
   });
 
   const [recentApplicants, setRecentApplicants] = useState<any[]>([]);
@@ -56,12 +56,13 @@ export default function EmployerDashboard() {
       // 1. Calculate Top Stats
       const activeCount = jobsData.filter((j: any) => j.status === 'Active' || j.status === 'Urgent').length;
       const shortCount = appsData.filter((a: any) => a.status === 'Shortlisted').length;
+      const hiredCount = appsData.filter((a: any) => a.status === 'Hired').length; // 🔥 Grab hired count
 
       setDashboardStats({
         activeJobs: activeCount,
         totalApplicants: appsData.length,
         shortlisted: shortCount,
-        views: appsData.length * 3 // Mock multiplier for profile views
+        hired: hiredCount // 🔥 Set hired count
       });
 
       // 2. Format Recent Applicants (Sort by newest, grab top 4)
@@ -121,8 +122,8 @@ export default function EmployerDashboard() {
       case 'Shortlisted': return <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 uppercase tracking-wider"><Star size={10} /> Shortlisted</span>;
       case 'Reviewed': return <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 uppercase tracking-wider"><CheckCircle2 size={10} /> Reviewed</span>;
       case 'Rejected': return <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 uppercase tracking-wider"><XCircle size={10} /> Rejected</span>;
-      case 'Hired': return <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 uppercase tracking-wider"><Briefcase size={10} /> Hired</span>;
-      default: return <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 uppercase tracking-wider"><Clock size={10} /> New</span>;
+      case 'Hired': return <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 uppercase tracking-wider"><Briefcase size={10} /> Hired</span>;
+      default: return <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 uppercase tracking-wider"><Clock size={10} /> New</span>;
     }
   };
 
@@ -138,12 +139,12 @@ export default function EmployerDashboard() {
     setSkills(skills.filter(s => s !== skillToRemove));
   };
 
-  // Compile the cards dynamically
+  // 🔥 Dynamically compile the cards with the new Hired stat
   const statCards = [
     { title: 'Active Jobs', value: dashboardStats.activeJobs.toString(), trend: 'Currently Open', icon: <Briefcase size={22} className="text-purple-500" />, bg: 'bg-purple-50 dark:bg-purple-500/10' },
     { title: 'Total Applicants', value: dashboardStats.totalApplicants.toString(), trend: 'All Time', icon: <Users size={22} className="text-blue-500" />, bg: 'bg-blue-50 dark:bg-blue-500/10' },
     { title: 'Shortlisted', value: dashboardStats.shortlisted.toString(), trend: 'Pending Interviews', icon: <Star size={22} className="text-amber-500" />, bg: 'bg-amber-50 dark:bg-amber-500/10' },
-    { title: 'Profile Views', value: dashboardStats.views.toString(), trend: 'Estimated Traffic', icon: <Eye size={22} className="text-emerald-500" />, bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { title: 'Successfully Hired', value: dashboardStats.hired.toString(), trend: 'Onboarded Students', icon: <CheckCircle2 size={22} className="text-emerald-500" />, bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
   ];
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin text-purple-600" size={40} /></div>;
@@ -303,9 +304,19 @@ export default function EmployerDashboard() {
               </div>
             ) : (
               recentApplicants.map((applicant) => (
-                <div key={applicant.id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border border-transparent hover:border-zinc-100 dark:hover:border-zinc-800">
+                <div
+                  key={applicant.id}
+                  // 🔥 If hired, highlight the row green! Otherwise, standard hover effect.
+                  className={`flex items-center justify-between p-3 rounded-2xl transition-colors border ${applicant.status === 'Hired'
+                    ? 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20 shadow-sm'
+                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-transparent hover:border-zinc-100 dark:hover:border-zinc-800'
+                    }`}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-sm shrink-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${applicant.status === 'Hired'
+                      ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
+                      : 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400'
+                      }`}>
                       {applicant.avatar}
                     </div>
                     <div>

@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Clock, Target, Calendar, BrainCircuit,
     Plus, FileText, CheckCircle2, AlertCircle,
-    Sparkles, Info, Zap, PlayCircle
+    Sparkles, Info, Zap, PlayCircle, Download, Loader2
 } from 'lucide-react';
+import { auth } from '../../firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
+import PrintDTRModal from '../../components/PrintDtrModal'; // Adjust path if needed
 
 interface LogEntry {
-    id: string;
+    id?: string;
     date: string;
     hoursLogged: number;
     hoursCredited: number;
@@ -15,21 +18,30 @@ interface LogEntry {
 }
 
 export default function OJTTrackerPage() {
+    const [uid, setUid] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // User Details for PDF
+    const [studentProfile, setStudentProfile] = useState<any>(null);
+
     const [status, setStatus] = useState<'Actively Looking' | 'In Progress' | 'Completed'>('Actively Looking');
     const [requiredHours, setRequiredHours] = useState<number>(450);
     const [completedHours, setCompletedHours] = useState<number>(0);
-
     const [logs, setLogs] = useState<LogEntry[]>([]);
 
     // DTR Input States
     const [logHours, setLogHours] = useState<number | ''>('');
     const [logTask, setLogTask] = useState('');
     const [isDoublePay, setIsDoublePay] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // AI Predictor States
     const [hoursPerShift, setHoursPerShift] = useState<number | ''>(8);
     const [daysPerWeek, setDaysPerWeek] = useState<number | ''>(5);
     const [targetStartDate, setTargetStartDate] = useState<string>('');
+
+    // Print Modal State
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // --- CALCULATIONS ---
     const remainingHours = Math.max(0, requiredHours - completedHours);
@@ -37,7 +49,101 @@ export default function OJTTrackerPage() {
         ? Math.min(100, Math.round((completedHours / requiredHours) * 100))
         : 0;
 
-    // --- PREDICTOR LOGIC (Looking Mode) ---
+    // --- FETCH DATA ON LOAD ---
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setUid(user.uid);
+                try {
+                    // 1. Fetch Student Profile (for PDF Details)
+                    const profileRes = await fetch(`http://localhost:8080/api/users/profile/${user.uid}`);
+                    if (profileRes.ok) {
+                        const profileData = await profileRes.json();
+                        setStudentProfile(profileData);
+                        if (profileData.ojt) {
+                            setRequiredHours(profileData.ojt.requiredHours || 450);
+                            setStatus(profileData.ojt.status || 'In Progress');
+                        }
+                    }
+
+                    // 2. Fetch Existing DTR Logs from Database
+                    const logsRes = await fetch(`http://localhost:8080/api/dtr/logs/${user.uid}`);
+                    if (logsRes.ok) {
+                        const logsData = await logsRes.json();
+                        setLogs(logsData);
+
+                        // Calculate total completed hours from DB logs
+                        const totalHours = logsData.reduce((sum: number, log: LogEntry) => sum + Number(log.hoursCredited), 0);
+                        setCompletedHours(totalHours);
+
+                        if (totalHours >= requiredHours && requiredHours > 0) {
+                            setStatus('Completed');
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to load OJT data:", error);
+                } finally {
+                    setIsLoading(false);
+                }
+            } else {
+                setIsLoading(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [requiredHours]);
+
+
+    // --- HANDLER: ADD DTR LOG ---
+    const handleAddLog = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!logHours || logHours <= 0 || !logTask.trim() || !uid) return;
+
+        setIsSubmitting(true);
+        const creditedHours = isDoublePay ? Number(logHours) * 2 : Number(logHours);
+
+        const newLogData = {
+            student_uid: uid,
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            hoursLogged: Number(logHours),
+            hoursCredited: creditedHours,
+            task: logTask,
+            isDouble: isDoublePay
+        };
+
+        try {
+            // Save to Database
+            const res = await fetch('http://localhost:8080/api/dtr/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newLogData)
+            });
+
+            if (res.ok) {
+                const savedLog = await res.json();
+
+                // Update UI
+                setLogs([savedLog, ...logs]);
+                setCompletedHours(prev => prev + creditedHours);
+
+                if (completedHours + creditedHours >= requiredHours) {
+                    setStatus('Completed');
+                }
+
+                // Reset Form
+                setLogHours('');
+                setLogTask('');
+                setIsDoublePay(false);
+            } else {
+                alert("Failed to save log to database.");
+            }
+        } catch (error) {
+            console.error("DTR Submit Error:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // --- PREDICTOR LOGIC ---
     const calculateLookingForecast = () => {
         if (!hoursPerShift || !daysPerWeek || hoursPerShift <= 0 || daysPerWeek <= 0) return "--";
         if (!targetStartDate) return "Set a Start Date";
@@ -52,7 +158,6 @@ export default function OJTTrackerPage() {
         return endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    // --- PREDICTOR LOGIC (In Progress Mode) ---
     const calculateExpectedEnd = () => {
         if (remainingHours === 0) return "Completed!";
         if (!hoursPerShift || !daysPerWeek || hoursPerShift <= 0 || daysPerWeek <= 0) return "--";
@@ -67,33 +172,9 @@ export default function OJTTrackerPage() {
         return targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    // --- HANDLER: ADD DTR LOG ---
-    const handleAddLog = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!logHours || logHours <= 0 || !logTask.trim()) return;
-
-        const creditedHours = isDoublePay ? Number(logHours) * 2 : Number(logHours);
-
-        const newLog: LogEntry = {
-            id: Math.random().toString(36).substr(2, 9),
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            hoursLogged: Number(logHours),
-            hoursCredited: creditedHours,
-            task: logTask,
-            isDouble: isDoublePay
-        };
-
-        setLogs([newLog, ...logs]);
-        setCompletedHours(prev => prev + creditedHours);
-
-        if (completedHours + creditedHours >= requiredHours) {
-            setStatus('Completed');
-        }
-
-        setLogHours('');
-        setLogTask('');
-        setIsDoublePay(false);
-    };
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin text-purple-600" size={40} /></div>;
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-20 px-4 sm:px-0 animate-in fade-in duration-500">
@@ -109,14 +190,25 @@ export default function OJTTrackerPage() {
                             <p className="text-sm text-zinc-500 dark:text-zinc-400">Track your hours, predict your graduation, and log your daily tasks.</p>
                         </div>
 
-                        <span className={`text-[11px] uppercase tracking-wider font-bold px-4 py-2 rounded-full border w-fit transition-colors ${status === 'In Progress'
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-                            : status === 'Completed'
-                                ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
-                                : 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20'
-                            }`}>
-                            {status}
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <span className={`text-[11px] uppercase tracking-wider font-bold px-4 py-2 rounded-full border w-fit transition-colors ${status === 'In Progress'
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                                : status === 'Completed'
+                                    ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
+                                    : 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20'
+                                }`}>
+                                {status}
+                            </span>
+
+                            {/* 🔥 FIXED PDF DOWNLOAD BUTTON 🔥 */}
+                            <button
+                                onClick={() => setIsPrintModalOpen(true)}
+                                disabled={logs.length === 0}
+                                className="flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-500/20 dark:hover:bg-purple-500/30 dark:text-purple-300 px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
+                            >
+                                <Download size={16} /> Print DTR
+                            </button>
+                        </div>
                     </div>
 
                     {/* PROGRESS BAR */}
@@ -287,7 +379,6 @@ export default function OJTTrackerPage() {
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-zinc-100 dark:border-zinc-800 pt-4 transition-colors">
-                                        {/* Custom Double Pay Toggle */}
                                         <button
                                             type="button"
                                             onClick={() => setIsDoublePay(!isDoublePay)}
@@ -300,8 +391,9 @@ export default function OJTTrackerPage() {
                                             Holiday / Double Credit
                                         </button>
 
-                                        <button type="submit" className="w-full sm:w-auto px-8 py-3.5 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-md shadow-purple-500/20">
-                                            <Plus size={18} /> Submit Entry
+                                        <button disabled={isSubmitting} type="submit" className="w-full sm:w-auto px-8 py-3.5 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-md shadow-purple-500/20 disabled:opacity-50">
+                                            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                                            Submit Entry
                                         </button>
                                     </div>
                                 </form>
@@ -312,7 +404,6 @@ export default function OJTTrackerPage() {
                                         <div className="text-center py-10 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900/50 transition-colors">
                                             <FileText className="mx-auto text-zinc-300 dark:text-zinc-700 mb-3 transition-colors" size={32} />
                                             <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400 transition-colors">Your DTR is empty.</p>
-                                            <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1 font-medium transition-colors">Start recording your daily hours to track your progress.</p>
                                         </div>
                                     ) : (
                                         logs.map((log) => (
@@ -323,11 +414,6 @@ export default function OJTTrackerPage() {
                                                     </span>
                                                     <div className="flex flex-col items-start gap-1.5">
                                                         <span className="text-[14px] font-bold text-zinc-900 dark:text-white break-words line-clamp-2 transition-colors">{log.task}</span>
-                                                        {log.isDouble && (
-                                                            <span className="bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 w-fit mt-0.5 shrink-0 transition-colors">
-                                                                <Zap size={10} className="fill-orange-500" /> Holiday Credit
-                                                            </span>
-                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-end shrink-0">
@@ -341,7 +427,6 @@ export default function OJTTrackerPage() {
                                     )}
                                 </div>
                             </div>
-
                         </div>
                     )}
 
@@ -355,11 +440,29 @@ export default function OJTTrackerPage() {
                             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed px-4 transition-colors">
                                 Congratulations on completing your required OJT hours! Ensure your final DTR and supervisor evaluations are compiled and submitted to your coordinator.
                             </p>
+
+                            <button
+                                onClick={() => setIsPrintModalOpen(true)}
+                                className="mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mx-auto transition-all hover:scale-105 active:scale-95"
+                            >
+                                <Download size={20} /> Download Final DTR
+                            </button>
                         </div>
                     )}
 
                 </div>
             </div>
+
+            {/* DTR PRINT MODAL COMPONENT */}
+            <PrintDTRModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                logs={logs}
+                studentProfile={studentProfile}
+                requiredHours={requiredHours}
+                completedHours={completedHours}
+            />
+
         </div>
     );
 }

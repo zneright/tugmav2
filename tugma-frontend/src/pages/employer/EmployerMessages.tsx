@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  Search, Send, Paperclip, MoreVertical,
-  Image as ImageIcon, Smile, CheckCircle2,
-  FileText, Calendar, Loader2, MessageSquare
+  Search, Send, MoreVertical,
+  CheckCircle2, FileText, Loader2, MessageSquare, Printer
 } from 'lucide-react';
 import { auth } from '../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
+import PrintDTRModal from '../../components/PrintDtrModal'; // Adjust path if needed
 
 export default function EmployerMessages() {
   const [uid, setUid] = useState<string | null>(null);
@@ -17,6 +17,14 @@ export default function EmployerMessages() {
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  // 🔥 NEW: State for Print Modal
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printLogs, setPrintLogs] = useState<any[]>([]);
+  const [printProfile, setPrintProfile] = useState<any>(null);
+  const [printRequiredHours, setPrintRequiredHours] = useState(450);
+  const [printCompletedHours, setPrintCompletedHours] = useState(0);
 
   // 1. Authenticate and Load Conversations
   useEffect(() => {
@@ -38,8 +46,17 @@ export default function EmployerMessages() {
         const data = await res.json();
         setConversations(data);
 
-        // If we don't have an active chat yet, select the first one
-        if (!activeChat && data.length > 0) {
+        const pathParts = window.location.pathname.split('/');
+        const targetUid = pathParts[pathParts.length - 1];
+
+        let targetChat = null;
+        if (targetUid && targetUid !== 'messages') {
+          targetChat = data.find((c: any) => c.id === targetUid);
+        }
+
+        if (targetChat) {
+          setActiveChat(targetChat);
+        } else if (!activeChat && data.length > 0) {
           setActiveChat(data[0]);
         }
       }
@@ -59,7 +76,6 @@ export default function EmployerMessages() {
           const chatData = JSON.parse(pendingChat);
           const initialMessage = `Hi ${chatData.name.split(' ')[0]}, thanks for applying to the ${chatData.role || 'open'} position! We are reviewing your application now.`;
 
-          // Instantly send to database to create the connection
           await fetch('http://localhost:8080/api/messages/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -71,8 +87,6 @@ export default function EmployerMessages() {
           });
 
           localStorage.removeItem('pending_new_chat');
-
-          // Reload inbox to show the new chat, and set it as active!
           await loadConversations(uid);
           setActiveChat({ ...chatData, id: chatData.id });
         } catch (error) {
@@ -91,8 +105,6 @@ export default function EmployerMessages() {
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
-
-        // Remove unread badge locally if we just read them
         setConversations(prev => prev.map(c => c.id === activeChat.id ? { ...c, unread: 0 } : c));
       }
     } catch (error) {
@@ -100,21 +112,17 @@ export default function EmployerMessages() {
     }
   };
 
-  // Polling hook (Checks for new messages every 3 seconds)
   useEffect(() => {
-    loadMessages(); // Load immediately on chat switch
-
+    loadMessages();
     const interval = setInterval(() => {
       if (uid && activeChat) {
         loadMessages();
-        loadConversations(uid); // Keep inbox unread counts updated too
+        loadConversations(uid);
       }
     }, 3000);
-
     return () => clearInterval(interval);
   }, [activeChat, uid]);
 
-  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -128,7 +136,6 @@ export default function EmployerMessages() {
     setNewMessage('');
     setIsSending(true);
 
-    // Optimistic UI update
     setMessages(prev => [...prev, {
       id: Date.now(),
       sender: 'me',
@@ -146,13 +153,61 @@ export default function EmployerMessages() {
           message: messageText
         })
       });
-
-      // Update inbox list preview
       loadConversations(uid);
     } catch (error) {
       console.error("Send failed", error);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // 🔥 5. FETCH & OPEN PRINT MODAL 🔥
+  const handleOpenPrintModal = async () => {
+    if (!activeChat) return;
+    setIsPrinting(true);
+
+    try {
+      // Fetch both logs and profile specific to the active chat user dynamically
+      const [logsRes, profRes] = await Promise.all([
+        fetch(`http://localhost:8080/api/dtr/logs/${activeChat.id}`),
+        fetch(`http://localhost:8080/api/users/profile/${activeChat.id}`)
+      ]);
+
+      let fetchedLogs: any[] = [];
+      let fetchedProfile: any = { firstName: activeChat.name.split(' ')[0], lastName: activeChat.name.split(' ')[1] || '', course: 'Not specified' };
+      let reqHours = 450;
+      let compHours = 0;
+
+      if (logsRes.ok) {
+        const logsData = await logsRes.json();
+        fetchedLogs = Array.isArray(logsData) ? logsData : [];
+        compHours = fetchedLogs.reduce((sum, log) => sum + (Number(log.hoursCredited) || 0), 0);
+      }
+
+      if (profRes.ok) {
+        const profData = await profRes.json();
+        if (profData.firstName) fetchedProfile.firstName = profData.firstName;
+        if (profData.lastName) fetchedProfile.lastName = profData.lastName;
+        if (profData.course) fetchedProfile.course = profData.course;
+
+        if (profData.ojt) {
+          const parsedOjt = typeof profData.ojt === 'string' ? JSON.parse(profData.ojt) : profData.ojt;
+          if (parsedOjt.requiredHours) reqHours = parsedOjt.requiredHours;
+        }
+      }
+
+      // Update state and open modal
+      setPrintLogs(fetchedLogs);
+      setPrintProfile(fetchedProfile);
+      setPrintRequiredHours(reqHours);
+      setPrintCompletedHours(compHours);
+      setIsPrintModalOpen(true);
+
+    } catch (error) {
+      console.error("Failed to prepare DTR for printing:", error);
+      alert("Failed to load DTR records for this student.");
+    } finally {
+      setIsPrinting(false);
     }
   };
 
@@ -235,7 +290,7 @@ export default function EmployerMessages() {
                     {activeChat.name} <CheckCircle2 size={16} className="text-blue-500 hidden sm:block" />
                   </h3>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium truncate max-w-[150px] sm:max-w-none">
-                    {activeChat.role}
+                    {activeChat.role || 'OJT Applicant'}
                   </p>
                 </div>
               </div>
@@ -244,9 +299,17 @@ export default function EmployerMessages() {
                 <button className="hidden lg:flex items-center gap-2 px-3 py-2 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-xl transition-colors border border-zinc-200 dark:border-zinc-700">
                   <FileText size={14} /> Resume
                 </button>
-                <button className="hidden sm:flex items-center gap-2 px-3 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-bold rounded-xl transition-colors border border-purple-200 dark:border-purple-500/30">
-                  <Calendar size={14} /> Schedule
+
+                {/* 🔥 OPEN DTR MODAL BUTTON 🔥 */}
+                <button
+                  onClick={handleOpenPrintModal}
+                  disabled={isPrinting}
+                  className="hidden sm:flex items-center gap-2 px-3 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-bold rounded-xl transition-colors border border-purple-200 dark:border-purple-500/30 disabled:opacity-50"
+                >
+                  {isPrinting ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+                  {isPrinting ? 'Loading...' : 'Print DTR'}
                 </button>
+
                 <button className="p-2 sm:p-2.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
                   <MoreVertical size={20} />
                 </button>
@@ -282,26 +345,16 @@ export default function EmployerMessages() {
             <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800">
               <form
                 onSubmit={handleSendMessage}
-                className="flex items-center gap-1 sm:gap-2 bg-zinc-50 dark:bg-zinc-800/50 p-1.5 sm:p-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-purple-500/20 focus-within:border-purple-500 transition-all"
+                className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/50 p-1.5 sm:p-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-purple-500/20 focus-within:border-purple-500 transition-all"
               >
-                <button type="button" className="p-2 sm:p-2.5 text-zinc-400 hover:text-purple-600 transition-colors shrink-0">
-                  <Paperclip size={18} className="sm:w-5 sm:h-5" />
-                </button>
-                <button type="button" className="hidden md:block p-2.5 text-zinc-400 hover:text-purple-600 transition-colors shrink-0">
-                  <ImageIcon size={20} />
-                </button>
-
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Message candidate..."
-                  className="flex-1 bg-transparent border-none outline-none text-sm dark:text-white px-2 placeholder:text-zinc-400"
+                  className="flex-1 bg-transparent border-none outline-none text-sm dark:text-white px-3 py-2 placeholder:text-zinc-400"
                 />
 
-                <button type="button" className="hidden sm:block p-2 sm:p-2.5 text-zinc-400 hover:text-amber-500 transition-colors shrink-0">
-                  <Smile size={18} className="sm:w-5 sm:h-5" />
-                </button>
                 <button
                   type="submit"
                   disabled={newMessage.trim() === '' || isSending}
@@ -320,6 +373,16 @@ export default function EmployerMessages() {
           </div>
         )}
       </div>
+
+      {/* 🔥 PRINT MODAL INTEGRATION 🔥 */}
+      <PrintDTRModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        logs={printLogs}
+        studentProfile={printProfile}
+        requiredHours={printRequiredHours}
+        completedHours={printCompletedHours}
+      />
     </div>
   );
 }
