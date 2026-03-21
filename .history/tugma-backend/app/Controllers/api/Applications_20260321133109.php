@@ -186,12 +186,12 @@ class Applications extends ResourceController
             }
 
             $updateData = [
-            'ai_match_score' => $analysis['match_score'],
-            'ai_assessment' => $analysis['overall_assessment']
-        ];
+                'ai_match_score' => $analysis['match_score'],
+                'ai_assessment' => $analysis['overall_assessment']
+            ];
 
-        // ✅ FIXED: Save to the correct table!
-        $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
+            // ✅ FIXED: Save to the correct table!
+            $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
 
             return $this->respond($analysis);
 

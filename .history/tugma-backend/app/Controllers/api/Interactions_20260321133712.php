@@ -12,15 +12,16 @@ class Interactions extends ResourceController
         if ($_SERVER['REQUEST_METHOD'] == "OPTIONS") die();
     }
 
-    // 1. 🔥 BULLETPROOF RECORDING 🔥
+    // 🔥 BULLETPROOF RECORDING 🔥
     public function record()
     {
         try {
             $data = $this->request->getJSON(true);
             $db = \Config\Database::connect();
             $builder = $db->table('job_interactions');
+            $currentTime = date('Y-m-d H:i:s'); // Get exact current time
 
-            // Check if they already applied
+            // 1. Check if they already applied
             $hasApplied = $builder->where('student_uid', $data['student_uid'])
                                   ->where('job_id', $data['job_id'])
                                   ->where('interaction_type', 'applied')
@@ -30,7 +31,7 @@ class Interactions extends ResourceController
                 return $this->respond(['message' => 'Already applied']);
             }
 
-            // Check if a view already exists
+            // 2. Check if a view already exists
             $existingView = $builder->where('student_uid', $data['student_uid'])
                                     ->where('job_id', $data['job_id'])
                                     ->where('interaction_type', 'viewed')
@@ -42,7 +43,8 @@ class Interactions extends ResourceController
                         'student_uid' => $data['student_uid'],
                         'job_id' => $data['job_id'],
                         'interaction_type' => 'viewed',
-                        'status' => '' // 🔥 FIX: Empty string prevents DB crash!
+                        'status' => '',
+                        'created_at' => $currentTime // Stamp the view time
                     ]);
                 }
                 return $this->respond(['message' => 'View recorded']);
@@ -53,7 +55,8 @@ class Interactions extends ResourceController
                     // Upgrade view to an application
                     $builder->where('id', $existingView['id'])->update([
                         'interaction_type' => 'applied',
-                        'status' => 'New Applicant'
+                        'status' => 'New Applicant',
+                        'created_at' => $currentTime // 🔥 FIX: Reset time so it pops to the top!
                     ]);
                 } else {
                     // Insert fresh application
@@ -61,7 +64,8 @@ class Interactions extends ResourceController
                         'student_uid' => $data['student_uid'],
                         'job_id' => $data['job_id'],
                         'interaction_type' => 'applied',
-                        'status' => 'New Applicant'
+                        'status' => 'New Applicant',
+                        'created_at' => $currentTime // Stamp the application time
                     ]);
                 }
                 return $this->respond(['message' => 'Application recorded']);
@@ -72,7 +76,7 @@ class Interactions extends ResourceController
         }
     }
 
-    // 2. GET ALL INTERACTIONS
+    // GET ALL INTERACTIONS
     public function getStudentInteractions($uid)
     {
         $db = \Config\Database::connect();
@@ -91,40 +95,5 @@ class Interactions extends ResourceController
             'viewed' => array_values(array_unique($viewed)), 
             'applied' => array_values(array_unique($applied))
         ]);
-    }
-
-    // 3. 🔥 GET DASHBOARD STATS (MOVED FROM APPLICATIONS.PHP) 🔥
-    public function getDashboardStats($studentUid = null)
-    {
-        $db = \Config\Database::connect();
-
-        $statsRaw = $db->table('job_interactions')
-            ->select('status, interaction_type, COUNT(*) as total')
-            ->where('student_uid', $studentUid)
-            ->groupBy('status, interaction_type')
-            ->get()
-            ->getResultArray();
-
-        $stats = [
-            'applied' => 0, 'viewed' => 0, 'shortlisted' => 0,
-            'hired' => 0, 'declined' => 0, 'pending' => 0, 'reviewed' => 0
-        ];
-
-        foreach ($statsRaw as $row) {
-            if ($row['interaction_type'] === 'viewed') {
-                $stats['viewed'] += (int)$row['total'];
-            } else {
-                // It's an application
-                $stats['applied'] += (int)$row['total'];
-                
-                if ($row['status'] === 'Shortlisted') $stats['shortlisted'] += (int)$row['total'];
-                if ($row['status'] === 'Hired') $stats['hired'] += (int)$row['total'];
-                if ($row['status'] === 'Rejected') $stats['declined'] += (int)$row['total'];
-                if ($row['status'] === 'Reviewed') $stats['reviewed'] += (int)$row['total'];
-                if ($row['status'] === 'New Applicant') $stats['pending'] += (int)$row['total'];
-            }
-        }
-
-        return $this->respond($stats);
     }
 }

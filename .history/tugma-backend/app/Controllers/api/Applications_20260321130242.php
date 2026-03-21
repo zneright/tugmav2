@@ -186,12 +186,10 @@ class Applications extends ResourceController
             }
 
             $updateData = [
-            'ai_match_score' => $analysis['match_score'],
-            'ai_assessment' => $analysis['overall_assessment']
-        ];
-
-        // ✅ FIXED: Save to the correct table!
-        $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
+                'ai_match_score' => $analysis['match_score'],
+                'ai_assessment' => $analysis['overall_assessment']
+            ];
+            $db->table('applications')->where('id', $applicationId)->update($updateData);
 
             return $this->respond($analysis);
 
@@ -296,31 +294,40 @@ class Applications extends ResourceController
     {
         $db = \Config\Database::connect();
 
+        // Count every application status for this specific student
         $statsRaw = $db->table('job_interactions')
-            ->select('status, interaction_type, COUNT(*) as total')
+            ->select('status, COUNT(*) as total')
             ->where('student_uid', $studentUid)
-            ->groupBy('status, interaction_type')
+            ->where('interaction_type', 'applied')
+            ->groupBy('status')
             ->get()
             ->getResultArray();
 
+        // Get total views
+        $viewsCount = $db->table('job_interactions')
+            ->where('student_uid', $studentUid)
+            ->where('interaction_type', 'viewed')
+            ->countAllResults();
+
+        // Initialize defaults
         $stats = [
-            'applied' => 0, 'viewed' => 0, 'shortlisted' => 0,
-            'hired' => 0, 'declined' => 0, 'pending' => 0, 'reviewed' => 0
+            'applied' => 0,
+            'viewed' => $viewsCount,
+            'shortlisted' => 0,
+            'hired' => 0,
+            'declined' => 0,
+            'pending' => 0,
+            'reviewed' => 0
         ];
 
         foreach ($statsRaw as $row) {
-            if ($row['interaction_type'] === 'viewed') {
-                $stats['viewed'] += (int)$row['total'];
-            } else {
-                // It's an application
-                $stats['applied'] += (int)$row['total'];
-                
-                if ($row['status'] === 'Shortlisted') $stats['shortlisted'] += (int)$row['total'];
-                if ($row['status'] === 'Hired') $stats['hired'] += (int)$row['total'];
-                if ($row['status'] === 'Rejected') $stats['declined'] += (int)$row['total'];
-                if ($row['status'] === 'Reviewed') $stats['reviewed'] += (int)$row['total'];
-                if ($row['status'] === 'New Applicant') $stats['pending'] += (int)$row['total'];
-            }
+            $stats['applied'] += (int)$row['total']; // Total sent
+            
+            if ($row['status'] === 'Shortlisted') $stats['shortlisted'] = (int)$row['total'];
+            if ($row['status'] === 'Hired') $stats['hired'] = (int)$row['total'];
+            if ($row['status'] === 'Rejected') $stats['declined'] = (int)$row['total'];
+            if ($row['status'] === 'Reviewed') $stats['reviewed'] = (int)$row['total'];
+            if ($row['status'] === 'New Applicant') $stats['pending'] = (int)$row['total'];
         }
 
         return $this->respond($stats);

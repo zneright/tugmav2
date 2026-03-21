@@ -79,4 +79,5 @@ $routes->get('api/messages/chat/(:segment)/(:segment)', 'Api\Messages::getChat/$
 $routes->post('api/messages/send', 'Api\Messages::send');
 
 $routes->get('api/applications/student/(:segment)', 'Api\Applications::getStudentApplications/$1');
+// Add this line inside your Routes.php file!
 $routes->get('api/interactions/dashboard/(:any)', 'Api\Interactions::getDashboardStats/$1');

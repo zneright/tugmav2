@@ -71,16 +71,10 @@ class Applications extends ResourceController
             // 👇 1. CHANGE THIS TO YOUR REAL TABLE NAME 👇
             $builder = $db->table('job_interactions'); 
             
-            $builder->select('
-                job_interactions.id as app_id,
-                employer_jobs.title as job_title,
-                employer_jobs.description as job_desc,
-                employer_jobs.skills as job_skills,
-                student_profiles.course,
-                student_profiles.skills as student_skills,
-                student_profiles.about,
-                student_profiles.education
-            ');
+            $builder->select('ji.id as application_id, ji.created_at as applied_at, ji.status, ji.ai_match_score, ji.ai_assessment,
+    u.first_name, u.last_name, u.email, u.firebase_uid as student_uid,
+    sp.course, sp.skills as student_skills, sp.resume_name, sp.resume_data, sp.profilePhoto, 
+    ej.id as job_id, ej.title as job_title, ej.skills as job_skills');
             
             // 👇 2. UPDATE THE JOINS TO MATCH 👇
             $builder->join('employer_jobs', 'employer_jobs.id = job_interactions.job_id', 'left');
@@ -186,12 +180,12 @@ class Applications extends ResourceController
             }
 
             $updateData = [
-            'ai_match_score' => $analysis['match_score'],
-            'ai_assessment' => $analysis['overall_assessment']
-        ];
+                'ai_match_score' => $analysis['match_score'],
+                'ai_assessment' => $analysis['overall_assessment']
+            ];
 
-        // ✅ FIXED: Save to the correct table!
-        $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
+            // ✅ FIXED: Save to the correct table!
+            $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
 
             return $this->respond($analysis);
 

@@ -20,16 +20,23 @@ class Applications extends ResourceController
         $db = \Config\Database::connect();
         
         $builder = $db->table('job_interactions ji');
+        
+        // 🔥 FIX 1: Added sp.resume_data so the Employer can actually download the resume!
         $builder->select('ji.id as application_id, ji.created_at as applied_at, ji.status, ji.ai_match_score, ji.ai_assessment,
                           u.first_name, u.last_name, u.email, u.firebase_uid as student_uid,
-                          sp.course, sp.skills as student_skills, sp.resume_name,
+                          sp.course, sp.skills as student_skills, sp.resume_name, sp.resume_data,
                           ej.id as job_id, ej.title as job_title, ej.skills as job_skills');
-        $builder->join('employer_jobs ej', 'ej.id = ji.job_id');
-        $builder->join('users u', 'u.firebase_uid = ji.student_uid');
-        $builder->join('student_profiles sp', 'sp.firebase_uid = u.firebase_uid', 'left');
+                          
+        // 🔥 FIX 2: Changed to LEFT JOIN so applications aren't dropped if a profile is incomplete
+        $builder->join('employer_jobs ej', 'ej.id = ji.job_id', 'left');
+        $builder->join('users u', 'u.firebase_uid = ji.student_uid', 'left');
+        $builder->join('student_profiles sp', 'sp.firebase_uid = ji.student_uid', 'left');
+        
         $builder->where('ej.firebase_uid', $employer_uid);
         $builder->where('ji.interaction_type', 'applied');
-        $builder->orderBy('ji.created_at', 'DESC');
+        
+        // 🔥 FIX 3: Sort by ID so the absolute newest applications ALWAYS show at the top
+        $builder->orderBy('ji.id', 'DESC');
         
         $applicants = $builder->get()->getResultArray();
 
@@ -186,12 +193,12 @@ class Applications extends ResourceController
             }
 
             $updateData = [
-            'ai_match_score' => $analysis['match_score'],
-            'ai_assessment' => $analysis['overall_assessment']
-        ];
+                'ai_match_score' => $analysis['match_score'],
+                'ai_assessment' => $analysis['overall_assessment']
+            ];
 
-        // ✅ FIXED: Save to the correct table!
-        $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
+            // ✅ FIXED: Save to the correct table!
+            $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
 
             return $this->respond($analysis);
 

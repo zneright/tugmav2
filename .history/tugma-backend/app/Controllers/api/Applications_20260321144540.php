@@ -19,60 +19,52 @@ class Applications extends ResourceController
 
         $db = \Config\Database::connect();
         
-        $builder = $db->table('job_interactions ji');
-        $builder->select('ji.id as application_id, ji.created_at as applied_at, ji.status, ji.ai_match_score, ji.ai_assessment,
-                          u.first_name, u.last_name, u.email, u.firebase_uid as student_uid,
-                          sp.course, sp.skills as student_skills, sp.resume_name,
-                          ej.id as job_id, ej.title as job_title, ej.skills as job_skills');
-        $builder->join('employer_jobs ej', 'ej.id = ji.job_id');
-        $builder->join('users u', 'u.firebase_uid = ji.student_uid');
-        $builder->join('student_profiles sp', 'sp.firebase_uid = u.firebase_uid', 'left');
-        $builder->where('ej.firebase_uid', $employer_uid);
-        $builder->where('ji.interaction_type', 'applied');
-        $builder->orderBy('ji.created_at', 'DESC');
+        $builder = $db->table('job_interactions'); // Removed the 'ji' alias to prevent SQL confusion
+        
+        // Use explicit table names for every single column to guarantee no "unknown column" errors
+        $builder->select('
+            job_interactions.id as application_id, 
+            job_interactions.created_at as applied_at, 
+            job_interactions.status, 
+            job_interactions.ai_match_score, 
+            job_interactions.ai_assessment,
+            users.first_name, 
+            users.last_name, 
+            users.email, 
+            users.firebase_uid as student_uid,
+            student_profiles.course, 
+            student_profiles.skills as student_skills, 
+            student_profiles.resume_name, 
+            student_profiles.resume_data, 
+            student_profiles.profilePhoto as profile_photo,
+            employer_jobs.id as job_id, 
+            employer_jobs.title as job_title, 
+            employer_jobs.skills as job_skills
+        ');
+        
+        $builder->join('employer_jobs', 'employer_jobs.id = job_interactions.job_id', 'left');
+        $builder->join('users', 'users.firebase_uid = job_interactions.student_uid', 'left');
+        $builder->join('student_profiles', 'student_profiles.firebase_uid = job_interactions.student_uid', 'left');
+        
+        $builder->where('employer_jobs.firebase_uid', $employer_uid);
+        $builder->where('job_interactions.interaction_type', 'applied');
+        $builder->orderBy('job_interactions.id', 'DESC');
         
         $applicants = $builder->get()->getResultArray();
 
         return $this->respond($applicants);
     }
 
-    public function updateStatus($application_id = null)
-    {
-        $json = $this->request->getJSON(true);
-        if (!$application_id || !isset($json['status'])) return $this->fail('Missing data');
-
-        $db = \Config\Database::connect();
-        $db->table('job_interactions')->where('id', $application_id)->update(['status' => $json['status']]);
-
-        return $this->respond(['message' => 'Status updated']);
-    }
-
-    // Helper for DOCX files
-    private function readDocx($filePath) {
-        $zip = new \ZipArchive;
-        $text = '';
-        if ($zip->open($filePath) === true) {
-            if (($index = $zip->locateName('word/document.xml')) !== false) {
-                $data = $zip->getFromIndex($index);
-                $data = str_replace('</w:t>', ' </w:t>', $data);
-                $text = strip_tags($data);
-            }
-            $zip->close();
-        }
-        return $text;
-    }
-
-    // 🔥 BULLETPROOF AI SCANNER 🔥
+    // 🔥 FIXED: analyzeApplicant without ambiguous ID errors 🔥
     public function analyzeApplicant($applicationId = null)
     {
         $db = \Config\Database::connect();
 
         try {
-            // 👇 1. CHANGE THIS TO YOUR REAL TABLE NAME 👇
             $builder = $db->table('job_interactions'); 
             
             $builder->select('
-                job_interactions.id as app_id,
+                job_interactions.id as application_id,
                 employer_jobs.title as job_title,
                 employer_jobs.description as job_desc,
                 employer_jobs.skills as job_skills,
@@ -82,11 +74,9 @@ class Applications extends ResourceController
                 student_profiles.education
             ');
             
-            // 👇 2. UPDATE THE JOINS TO MATCH 👇
             $builder->join('employer_jobs', 'employer_jobs.id = job_interactions.job_id', 'left');
             $builder->join('student_profiles', 'student_profiles.firebase_uid = job_interactions.student_uid', 'left');
             
-            // 👇 3. UPDATE THE WHERE CLAUSE 👇
             $builder->where('job_interactions.id', $applicationId);
             
             $data = $builder->get()->getRowArray();
@@ -95,7 +85,7 @@ class Applications extends ResourceController
                 return $this->failNotFound('Application not found in database.');
             }
 
-            // 🔥 FIX: Safely decode JSON. If it fails or is empty, force it to be an empty array []
+            // Safely decode JSON
             $jobSkills = !empty($data['job_skills']) ? json_decode($data['job_skills'], true) : [];
             if (!is_array($jobSkills)) $jobSkills = [];
 
@@ -110,7 +100,8 @@ class Applications extends ResourceController
             $courseText = !empty($data['course']) ? $data['course'] : 'Undeclared';
 
             $apiKey = 'AIzaSyAcyJCT9cWBwmKaYyKP9Fnyi76L2RvJfhI'; 
-          $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' . $apiKey; 
+            $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' . $apiKey; 
+            
             $prompt = "YOU ARE AN EXPERT HR RECRUITER AI. Evaluate this candidate for the specific job. OUTPUT ONLY RAW VALID JSON. DO NOT INCLUDE MARKDOWN.
 
             JOB REQUIREMENTS:
@@ -161,7 +152,6 @@ class Applications extends ResourceController
 
             $result = json_decode($response, true);
 
-            // 🔥 FIX: Catch Gemini API rejections (e.g. 400 Bad Request)
             if ($httpCode !== 200) {
                 throw new \Exception('Gemini API Error: ' . ($result['error']['message'] ?? 'Unknown API Error'));
             }
@@ -172,7 +162,6 @@ class Applications extends ResourceController
 
             $aiText = $result['candidates'][0]['content']['parts'][0]['text'];
             
-            // Clean up the text
             $firstBracket = strpos($aiText, '{');
             $lastBracket = strrpos($aiText, '}');
             if ($firstBracket !== false && $lastBracket !== false) {
@@ -186,20 +175,47 @@ class Applications extends ResourceController
             }
 
             $updateData = [
-            'ai_match_score' => $analysis['match_score'],
-            'ai_assessment' => $analysis['overall_assessment']
-        ];
+                'ai_match_score' => (int) $analysis['match_score'],
+                'ai_assessment' => (string) $analysis['overall_assessment']
+            ];
 
-        // ✅ FIXED: Save to the correct table!
-        $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
+            // Save to the correct table!
+            $db->table('job_interactions')->where('id', $applicationId)->update($updateData);
 
             return $this->respond($analysis);
 
         } catch (\Exception $e) {
-            // React will now accurately display THIS message!
             return $this->failServerError($e->getMessage());
         }
     }
+
+    public function updateStatus($application_id = null)
+    {
+        $json = $this->request->getJSON(true);
+        if (!$application_id || !isset($json['status'])) return $this->fail('Missing data');
+
+        $db = \Config\Database::connect();
+        $db->table('job_interactions')->where('id', $application_id)->update(['status' => $json['status']]);
+
+        return $this->respond(['message' => 'Status updated']);
+    }
+
+    // Helper for DOCX files
+    private function readDocx($filePath) {
+        $zip = new \ZipArchive;
+        $text = '';
+        if ($zip->open($filePath) === true) {
+            if (($index = $zip->locateName('word/document.xml')) !== false) {
+                $data = $zip->getFromIndex($index);
+                $data = str_replace('</w:t>', ' </w:t>', $data);
+                $text = strip_tags($data);
+            }
+            $zip->close();
+        }
+        return $text;
+    }
+
+    
     // 🔥 NEW: Handles the student clicking "Apply" 🔥
     public function apply()
     {
