@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/assets/tugma_2.png" alt="Tugma Logo" width="220">
+  <img src="tugma-frontend/src/assets/tugma_2.png" alt="Tugma Logo" width="220">
 </p>
 
 <h1 align="center">Tugma Platform</h1>
@@ -113,7 +113,7 @@ npm run dev
 
 -----
 
-\<p align="center"\>
+<p align="center"\>
 Built with 💜 for InterCICSkwela 2026
-\</p\>
+</p\>
 
