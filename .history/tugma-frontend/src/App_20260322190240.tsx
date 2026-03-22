@@ -51,23 +51,46 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        try {
-          // Fetch the exact role from your CodeIgniter backend
-          const response = await fetch(`http://localhost:8080/api/users/role/${user.uid}`);
-          if (response.ok) {
-            const data = await response.json();
-            setUserRole(data.role); // 'student', 'employer', 'admin', or 'superadmin'
-          } else {
-            setUserRole(null);
-          }
-        } catch (error) {
-          console.error("Failed to fetch user role", error);
-          setUserRole(null);
+        // 1. First, check if the user is the SuperAdmin by email (Hardcoded bypass for security)
+        const SUPERADMIN_EMAIL = "buday.313258@caloocan.sti.edu.ph";
+        if (user.email === SUPERADMIN_EMAIL) {
+          setUserRole('superadmin');
+          setIsAuthLoading(false);
+          return;
         }
+
+        // 2. Fetch role with a simple retry logic for new Google users
+        const getRole = async (attempts = 0): Promise<void> => {
+          try {
+            const response = await fetch(`http://localhost:8080/api/users/role/${user.uid}`);
+            if (response.ok) {
+              const data = await response.json();
+              setUserRole(data.role);
+              setIsAuthLoading(false);
+            } else if (attempts < 3) {
+              // If backend hasn't created the user yet (e.g., Google login in progress)
+              // Wait 1.5 seconds and try again
+              setTimeout(() => getRole(attempts + 1), 1500);
+            } else {
+              setUserRole(null);
+              setIsAuthLoading(false);
+            }
+          } catch (error) {
+            if (attempts < 3) {
+              setTimeout(() => getRole(attempts + 1), 1500);
+            } else {
+              console.error("Failed to fetch user role after retries", error);
+              setUserRole(null);
+              setIsAuthLoading(false);
+            }
+          }
+        };
+
+        getRole();
       } else {
-        setUserRole(null); // Not logged in
+        setUserRole(null);
+        setIsAuthLoading(false);
       }
-      setIsAuthLoading(false);
     });
 
     return () => unsubscribe();
@@ -80,8 +103,11 @@ function App() {
 
           {/* 🚀 PUBLIC ROUTE */}
           <Route path="/login" element={
-            // If already logged in, push them to their respective dashboard instead of the login page
-            userRole === 'student' ? <Navigate to="/dashboard" replace /> :
+            isAuthLoading ? (
+              <div className="h-screen w-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+                <Loader2 className="animate-spin text-purple-600" size={48} />
+              </div>
+            ) : userRole === 'student' ? <Navigate to="/dashboard" replace /> :
               userRole === 'employer' ? <Navigate to="/employer/dashboard" replace /> :
                 (userRole === 'admin' || userRole === 'superadmin') ? <Navigate to="/admin/dashboard" replace /> :
                   <Auth />
@@ -91,6 +117,7 @@ function App() {
             userRole ? <Navigate to={userRole === 'employer' ? '/employer/dashboard' : userRole === 'admin' || userRole === 'superadmin' ? '/admin/dashboard' : '/dashboard'} replace />
               : <Navigate to="/login" replace />
           } />
+
 
           {/* 🛡️ STUDENT PORTAL (Only 'student' allowed) */}
           <Route element={<ProtectedRoute isAuthLoading={isAuthLoading} userRole={userRole} allowedRoles={['student']} />}>
@@ -105,6 +132,7 @@ function App() {
             <Route path="/ojttracker" element={<DashboardLayout><OJTTrackerPage /></DashboardLayout>} />
           </Route>
 
+
           {/* 🏢 EMPLOYER PORTAL (Only 'employer' allowed) */}
           <Route element={<ProtectedRoute isAuthLoading={isAuthLoading} userRole={userRole} allowedRoles={['employer']} />}>
             <Route path="/employer" element={<Navigate to="/employer/dashboard" replace />} />
@@ -118,6 +146,7 @@ function App() {
             <Route path="/employer/help" element={<EmployerLayout><EmployerHelp /></EmployerLayout>} />
             <Route path="/employer/messages" element={<EmployerLayout><EmployerMessages /></EmployerLayout>} />
           </Route>
+
 
           {/* ⚡ ADMIN & SUPERADMIN PORTAL (Allows both 'admin' AND 'superadmin') */}
           <Route element={<ProtectedRoute isAuthLoading={isAuthLoading} userRole={userRole} allowedRoles={['admin', 'superadmin']} />}>

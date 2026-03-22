@@ -82,15 +82,16 @@ function App() {
           <Route path="/login" element={
             // If already logged in, push them to their respective dashboard instead of the login page
             userRole === 'student' ? <Navigate to="/dashboard" replace /> :
-              userRole === 'employer' ? <Navigate to="/employer/dashboard" replace /> :
-                (userRole === 'admin' || userRole === 'superadmin') ? <Navigate to="/admin/dashboard" replace /> :
-                  <Auth />
+            userRole === 'employer' ? <Navigate to="/employer/dashboard" replace /> :
+            (userRole === 'admin' || userRole === 'superadmin') ? <Navigate to="/admin/dashboard" replace /> :
+            <Auth />
           } />
 
           <Route path="/" element={
-            userRole ? <Navigate to={userRole === 'employer' ? '/employer/dashboard' : userRole === 'admin' || userRole === 'superadmin' ? '/admin/dashboard' : '/dashboard'} replace />
-              : <Navigate to="/login" replace />
+            userRole ? <Navigate to={userRole === 'employer' ? '/employer/dashboard' : userRole === 'admin' || userRole === 'superadmin' ? '/admin/dashboard' : '/dashboard'} replace /> 
+            : <Navigate to="/login" replace />
           } />
+
 
           {/* 🛡️ STUDENT PORTAL (Only 'student' allowed) */}
           <Route element={<ProtectedRoute isAuthLoading={isAuthLoading} userRole={userRole} allowedRoles={['student']} />}>
@@ -105,6 +106,7 @@ function App() {
             <Route path="/ojttracker" element={<DashboardLayout><OJTTrackerPage /></DashboardLayout>} />
           </Route>
 
+
           {/* 🏢 EMPLOYER PORTAL (Only 'employer' allowed) */}
           <Route element={<ProtectedRoute isAuthLoading={isAuthLoading} userRole={userRole} allowedRoles={['employer']} />}>
             <Route path="/employer" element={<Navigate to="/employer/dashboard" replace />} />
@@ -118,6 +120,7 @@ function App() {
             <Route path="/employer/help" element={<EmployerLayout><EmployerHelp /></EmployerLayout>} />
             <Route path="/employer/messages" element={<EmployerLayout><EmployerMessages /></EmployerLayout>} />
           </Route>
+
 
           {/* ⚡ ADMIN & SUPERADMIN PORTAL (Allows both 'admin' AND 'superadmin') */}
           <Route element={<ProtectedRoute isAuthLoading={isAuthLoading} userRole={userRole} allowedRoles={['admin', 'superadmin']} />}>

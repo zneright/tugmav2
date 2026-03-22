@@ -99,9 +99,8 @@ class Ats extends ResourceController
     {
         $apiKey = 'AIzaSyAv0M_cBTETWvIC2K8z7Eqd4lBPpEzyAuE'; 
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' . $apiKey;   
-        
-        $safeResume = json_encode(substr($resumeText, 0, 100000));
-        $safeJobDesc = json_encode(substr($jobDescription, 0, 50000));
+        $safeResume = json_encode(substr($resumeText, 0, 6000));
+        $safeJobDesc = json_encode(substr($jobDescription, 0, 3000));
 
         $prompt = "YOU ARE A WORLD-CLASS APPLICANT TRACKING SYSTEM (ATS). ANALYZE THIS RESUME AGAINST THE JOB DESCRIPTION. OUTPUT ONLY RAW VALID JSON.
         RESUME: " . $safeResume . "

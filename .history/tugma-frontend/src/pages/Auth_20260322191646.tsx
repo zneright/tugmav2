@@ -138,6 +138,7 @@ export default function Auth() {
 
         logSystemEvent(user.uid, 'Account Created', `Registered new ${signUpRole.toUpperCase()} account via Email/Password.`);
 
+        // Force a page reload so App.tsx fetches the brand new database role
         window.location.href = signUpRole === 'student' ? '/dashboard' : '/employer/dashboard';
       }
     } catch (err: any) {
@@ -243,7 +244,7 @@ export default function Auth() {
 
       logSystemEvent(pendingGoogleUser.uid, 'Account Created', `Registered new ${selectedRole.toUpperCase()} account via Google SSO.`);
 
-      window.location.href = selectedRole === 'student' ? '/dashboard' : '/employer/dashboard';
+      navigate(selectedRole === 'student' ? '/dashboard' : '/employer/dashboard');
     } catch (err: any) {
       console.error(err);
       setError(`Google Sync Error: ${err.message}`);

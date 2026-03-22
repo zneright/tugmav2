@@ -138,7 +138,7 @@ export default function Auth() {
 
         logSystemEvent(user.uid, 'Account Created', `Registered new ${signUpRole.toUpperCase()} account via Email/Password.`);
 
-        window.location.href = signUpRole === 'student' ? '/dashboard' : '/employer/dashboard';
+        navigate(signUpRole === 'student' ? '/dashboard' : '/employer/dashboard');
       }
     } catch (err: any) {
       console.error(err);
@@ -243,7 +243,7 @@ export default function Auth() {
 
       logSystemEvent(pendingGoogleUser.uid, 'Account Created', `Registered new ${selectedRole.toUpperCase()} account via Google SSO.`);
 
-      window.location.href = selectedRole === 'student' ? '/dashboard' : '/employer/dashboard';
+      navigate(selectedRole === 'student' ? '/dashboard' : '/employer/dashboard');
     } catch (err: any) {
       console.error(err);
       setError(`Google Sync Error: ${err.message}`);
@@ -401,7 +401,7 @@ export default function Auth() {
       <div className="hidden lg:flex w-1/2 h-full relative bg-cover bg-right" style={{ backgroundImage: `url('${bgImage}')` }}>
         <div className="absolute top-10 left-12 z-20">
           {/* Clean Logo Placement */}
-          <img src={tugmaLogo} alt="Tugma Logo" className="h-20 xl:h-40 object-contain drop-shadow-2xl transition-transform hover:scale-105" />
+          <img src={tugmaLogo} alt="Tugma Logo" className="h-20 xl:h-30  object-contain drop-shadow-2xl transition-transform hover:scale-105" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0310] via-transparent to-transparent opacity-80"></div>
         <div className="absolute bottom-16 left-12 z-10">

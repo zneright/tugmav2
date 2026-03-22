@@ -243,6 +243,7 @@ export default function Auth() {
 
       logSystemEvent(pendingGoogleUser.uid, 'Account Created', `Registered new ${selectedRole.toUpperCase()} account via Google SSO.`);
 
+      // Force a page reload so App.tsx fetches the brand new database role
       window.location.href = selectedRole === 'student' ? '/dashboard' : '/employer/dashboard';
     } catch (err: any) {
       console.error(err);

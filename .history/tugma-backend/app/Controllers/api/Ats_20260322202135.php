@@ -97,7 +97,7 @@ class Ats extends ResourceController
 
     private function gradeWithAI($resumeText, $jobDescription)
     {
-        $apiKey = 'AIzaSyAv0M_cBTETWvIC2K8z7Eqd4lBPpEzyAuE'; 
+        $apiKey = ''; 
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' . $apiKey;   
         
         $safeResume = json_encode(substr($resumeText, 0, 100000));
