@@ -95,7 +95,7 @@ cd tugma-backend
 composer install
 
 ````
-# Set up environment variables: Copy the env file and rename it to .env. Open .env and configure your database and environment:
+#### Set up environment variables: Copy the env file and rename it to .env. Open .env and configure your database and environment:
 ```bash
 CI_ENVIRONMENT = development
 database.default.hostname = localhost
