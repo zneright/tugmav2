@@ -5,8 +5,7 @@
 <h1 align="center">Tugma Platform</h1>
 
 <p align="center">
-  <strong>An Integrated OJT & AI-Powered Job-Matching Ecosystem</strong><br>
-  Supporting <em>SDG 8: Decent Work and Economic Growth</em>
+  <strong>Tugma is an integrated On-the-Job Training (OJT) and AI-powered job-matching ecosystem. It bridges the gap between students seeking internships, employers looking for talent, and administrators overseeing the process, directly supporting **SDG 8: Decent Work and Economic Growth**.</strong><br>
 </p>
 
 <p align="center">
@@ -38,23 +37,28 @@
 * **Secure Access:** Seamless login via Google Single Sign-On (SSO) or standard Email/Password credentials powered by Firebase.
 
 ### 🎓 Student Module
-* **Interactive Dashboard:** View personal OJT statistics, onboarding checklists, and quick-print Daily Time Records (DTR).
-* **AI-Powered Job Board:** Browse postings and receive smart job matching recommendations using Gemini AI.
-* **OJT & DTR Tracker:** Log daily hours, generate reports, and use a dynamic calculator to predict the exact OJT completion date.
-* **ATS Resume Scanner:** Test uploaded resumes against specific job descriptions to check alignment scores before applying.
-* **Messaging & Connections:** Direct message employers, manage pending job offers, and explore detailed company profiles.
+* **Dashboard:** View personal statistics, access onboarding checklist, and quick-print Daily Time Record (DTR).
+* **Find Jobs:** Browse postings, receive **AI-powered job matching recommendations**, and submit applications with integrated data consent for resume sharing.
+* **OJT & DTR Tracker:** Log daily time entries, generate/print DTR reports, and use a dynamic calculator predicting the expected OJT end date based on inputted hours and schedule.
+* **Messaging & Connections:** Direct messaging with employers via Inbox, manage pending job offers (accept/reject), and navigate to detailed Company Profiles to view employer information/open roles.
+* **Profile & Resume Management:** Manage personal details, upload/update resumes, and use the **ATS Scanner** to test resumes against job descriptions (with historical scan results).
+* **Notifications & Help:** Receive system/employer alerts, access FAQs, and submit/track customer support tickets.
 
 ### 🏢 Employer Module
-* **Employer Dashboard:** Track active job postings and overall company engagement metrics.
-* **Job Management:** Create, publish, draft, or close job listings easily.
-* **Applicant Tracking System (ATS):** View the applicant pool and run **Alignment Scans** (with or without resumes) to instantly find the best fit.
-* **Student Roster & DTR Access:** Manage hired students, access their submitted DTRs, and direct message applicants.
-* **Company Profile:** Update public-facing company details to attract top student talent.
+* **Dashboard / Overview:** View company statistics and active job posting metrics.
+* **Job Management:** Create and manage job postings. Toggle listing statuses between Draft, Published, or Closed.
+* **Applicants:** View the complete pool of applicants per job. Run **Alignment Scans** on applicants (evaluating fit with or without an attached resume). Update statuses (Reject or Send Offer), direct message applicants, and print applicant details/resumes.
+* **Messages:** Message directly with student applicants. View a roster of all hired students in **Connected Students** and access/print their DTRs.
+* **Company Profile:** Manage and update public-facing company details.
+* **Notifications & Help:** Receive system alerts, broadcast direct notifications to specific students, access FAQs, and submit support tickets.
 
 ### 🛡️ Admin & Super Admin Modules
-* **Platform Analytics:** View system-wide statistics and activity metrics.
-* **User Management:** Moderate accounts, archive flagged users, and export user data to PDF or Excel.
-* **System Broadcasts:** Send platform-wide alerts and notifications to students and employers.
+* **Dashboard:** View system statistics and platform analytics.
+* **User Management:** Manage/moderate user accounts, archive inactive or flagged users, and export user data to PDF or Excel formats.
+* **System Alerts:** Broadcast platform-wide notifications to both students and employers.
+* **Customer Service:** View, manage, and reply to support tickets submitted by students and employers.
+* **Reporting & Audit Trail:** Track and view complete system activity logs across all roles.
+* **Super Admin (Extra Features):** Elevated user control to create new Admin accounts and archive existing Admin accounts.
 
 ---
 
@@ -83,23 +87,67 @@
 - PHP (v8.1+) & Composer
 - Local Server (XAMPP/Laragon)
 
+
+
 ### 1. Backend Setup (CodeIgniter)
 ```bash
 cd tugma-backend
 composer install
-cp env .env
-# Configure your DB in .env then:
-php spark serve
-````
 
-### 2\. Frontend Setup (React)
+````
+### Set up environment variables: Copy the env file and rename it to .env. Open .env and configure your database and environment:
+```bash
+CI_ENVIRONMENT = development
+database.default.hostname = localhost
+database.default.database = tugma_db
+database.default.username = root
+database.default.password = 
+database.default.DBDriver = MySQLi
+```
+### Start the CodeIgniter development server:
+```bash
+php spark serve
+```
+   *The backend API will run on http://localhost:8080.* 
+
+
+### 2. Frontend Setup (React Vite TSX)
 
 ```bash
 cd frontend
 npm install
-# Add your VITE_CLOUDINARY keys and Firebase config to .env
-npm run dev
+
 ```
+
+### Configure your Firebase settings: Open your firebase.js file located in your src directory and update the configuration block with your own Firebase project credentials if needed.
+```bash
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+```
+
+### Configure Cloudinary:
+   * Create a free account at [Cloudinary](https://cloudinary.com).
+   * Locate your "Cloud Name" on the main dashboard.
+   * Navigate to Settings > Upload and create an "Upload Preset" (ensure the signing mode is set to "Unsigned").
+   * Update your configuration file or `.env` with your new credentials:
+     ```env
+     VITE_CLOUDINARY_CLOUD_NAME="your_cloud_name"
+     VITE_CLOUDINARY_UPLOAD_PRESET="your_upload_preset"
+     ```
+### Configure Gemini API:
+   * Obtain a free API key from Google AI Studio.
+   * Add the key to `ats.php`, `applicants.php`, and `aisearch.php` inside the `controllers/api` folder (`API_KEY="YOUR_API_KEY_HERE"`).
+
+### Start the Vite development server:
+   ```bash
+   npm run dev
+   ```
+   *The frontend application will run on http://localhost:5173.*
 
 -----
 
