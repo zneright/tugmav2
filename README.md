@@ -104,7 +104,7 @@ database.default.username = root
 database.default.password = 
 database.default.DBDriver = MySQLi
 ```
-# Start the CodeIgniter development server:
+#### Start the CodeIgniter development server:
 ```bash
 php spark serve
 ```
@@ -119,7 +119,7 @@ npm install
 
 ```
 
-# Configure your Firebase settings: Open your firebase.js file located in your src directory and update the configuration block with your own Firebase project credentials if needed.
+#### Configure your Firebase settings: Open your firebase.js file located in your src directory and update the configuration block with your own Firebase project credentials if needed.
 ```bash
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
@@ -130,7 +130,7 @@ const firebaseConfig = {
   appId: "YOUR_APP_ID"
 ```
 
-# Configure Cloudinary:
+#### Configure Cloudinary:
    * Create a free account at [Cloudinary](https://cloudinary.com).
    * Locate your "Cloud Name" on the main dashboard.
    * Navigate to Settings > Upload and create an "Upload Preset" (ensure the signing mode is set to "Unsigned").
@@ -139,11 +139,11 @@ const firebaseConfig = {
      VITE_CLOUDINARY_CLOUD_NAME="your_cloud_name"
      VITE_CLOUDINARY_UPLOAD_PRESET="your_upload_preset"
      ```
-# Configure Gemini API:
+#### Configure Gemini API:
    * Obtain a free API key from Google AI Studio.
    * Add the key to `ats.php`, `applicants.php`, and `aisearch.php` inside the `controllers/api` folder (`API_KEY="YOUR_API_KEY_HERE"`).
 
-# Start the Vite development server:
+#### Start the Vite development server:
    ```bash
    npm run dev
    ```
