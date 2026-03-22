@@ -130,4 +130,4 @@ npm run dev
 The frontend application will run on http://localhost:5173
 
 Contribution & License
-Built by IT Students for InterCICSkwela Hackathon Challenge 2026.
+Built by Renz Jericho Buday for Backend development, Nishia Pinlac for Frontend Development and Liezl Casabuena for Video Editing and Ideation for InterCICSkwela Hackathon Challenge 2026.
