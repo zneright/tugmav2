@@ -27,7 +27,7 @@ export default function EmployerDashboard() {
 
   const [recentApplicants, setRecentApplicants] = useState<any[]>([]);
   const [activeJobsList, setActiveJobsList] = useState<any[]>([]);
-  const [growthData, setGrowthData] = useState<{ name: string, applicants: number }[]>([]); // <-- Added state for live chart data
+  const [growthData, setGrowthData] = useState<{ name: string, applicants: number }[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -41,42 +41,41 @@ export default function EmployerDashboard() {
     return () => unsubscribe();
   }, []);
 
-  // --- Helper function to process raw app data into chart format ---
+  // --- 🔥 FIXED & BULLETPROOF LIVE CHART LOGIC 🔥 ---
   const processGrowthData = (apps: any[]) => {
-    const monthCounts: { [key: string]: number } = {};
     const today = new Date();
+    const newChartData = [];
 
-    // Initialize the last 6 months with 0 so the chart always looks good
+    // 1. Build the last 6 months strictly in order (Left to Right)
     for (let i = 5; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const monthName = d.toLocaleString('en-US', { month: 'short' });
-      monthCounts[monthName] = 0;
+      newChartData.push({
+        name: d.toLocaleString('en-US', { month: 'short' }),
+        month: d.getMonth(),
+        year: d.getFullYear(),
+        applicants: 0
+      });
     }
 
-    // Count actual applicants
+    // 2. Safely parse dates and count applicants
     apps.forEach((app: any) => {
       if (!app.applied_at) return;
-      const appDate = new Date(app.applied_at);
 
-      // Only count if it's within the last 6 months
-      const diffTime = today.getTime() - appDate.getTime();
-      const diffDays = diffTime / (1000 * 3600 * 24);
+      // Fix for Safari/iOS SQL Date Parsing (replaces - with /)
+      const safeDateString = app.applied_at.replace(/-/g, '/');
+      const appDate = new Date(safeDateString);
 
-      if (diffDays <= 180) { // Approx 6 months
-        const monthName = appDate.toLocaleString('en-US', { month: 'short' });
-        if (monthCounts[monthName] !== undefined) {
-          monthCounts[monthName]++;
-        }
+      // Find the matching month bin
+      const match = newChartData.find(
+        (data) => data.month === appDate.getMonth() && data.year === appDate.getFullYear()
+      );
+
+      if (match) {
+        match.applicants += 1;
       }
     });
 
-    // Convert object back to array for Recharts
-    const chartData = Object.keys(monthCounts).map(month => ({
-      name: month,
-      applicants: monthCounts[month]
-    }));
-
-    setGrowthData(chartData);
+    setGrowthData(newChartData);
   };
 
   const fetchDashboardData = async (employerUid: string) => {
@@ -103,7 +102,7 @@ export default function EmployerDashboard() {
         hired: hiredCount
       });
 
-      // --- Process live chart data here ---
+      // Feed live data to the chart
       processGrowthData(appsData);
 
       const sortedApps = [...appsData].sort((a, b) => new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime());
@@ -167,7 +166,9 @@ export default function EmployerDashboard() {
 
   const getTimeAgo = (dateString: string) => {
     if (!dateString) return 'Recently';
-    const date = new Date(dateString);
+    // Fix Safari parsing here too just in case
+    const safeDateString = dateString.replace(/-/g, '/');
+    const date = new Date(safeDateString);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     if (diffInHours < 1) return 'Just now';
@@ -339,12 +340,12 @@ export default function EmployerDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        {/* --- Platform Growth Chart --- */}
+        {/* --- LIVE Applicant Growth Chart --- */}
         <div className="lg:col-span-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <TrendingUp size={20} className="text-emerald-500" /> Platform Growth
+                <TrendingUp size={20} className="text-emerald-500" /> Applicant Growth
               </h3>
               <p className="text-sm text-zinc-500">Applicant volume over the last 6 months.</p>
             </div>
@@ -370,6 +371,7 @@ export default function EmployerDashboard() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 12, fill: '#71717a' }}
+                  allowDecimals={false} // Clean up Y-axis for whole numbers
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}

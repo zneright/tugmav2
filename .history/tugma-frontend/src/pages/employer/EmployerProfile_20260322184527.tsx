@@ -20,11 +20,11 @@ interface EmployerData {
 }
 
 export default function EmployerProfile() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // <-- Initialize navigate function
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // <-- Added delete state
   const [uid, setUid] = useState<string | null>(null);
 
   const [newPerk, setNewPerk] = useState('');
@@ -89,6 +89,7 @@ export default function EmployerProfile() {
     }
   };
 
+  // System Logs
   const logSystemEvent = (action: string, details: string) => {
     if (!uid) return;
     fetch('http://localhost:8080/api/audit/log', {
@@ -125,6 +126,7 @@ export default function EmployerProfile() {
     }
   };
 
+  // --- NEW: Account Deletion Handler ---
   const handleDeleteAccount = async () => {
     const user = auth.currentUser;
     if (!user || !uid) return;
@@ -136,6 +138,7 @@ export default function EmployerProfile() {
 
     setIsDeleting(true);
     try {
+      // 1. Tell backend to archive data and delete from active 'users' collection
       const res = await fetch(`http://localhost:8080/api/users/profile/${uid}`, {
         method: 'DELETE',
       });
@@ -147,10 +150,12 @@ export default function EmployerProfile() {
 
       logSystemEvent('Deleted Employer Account', `Company account deleted for: ${formData.company_name}`);
 
+      // 2. Delete Firebase Authentication
       await user.delete();
 
       alert("Employer account deleted and archived successfully.");
 
+      // 3. Immediately redirect to login page
       navigate('/login', { replace: true });
 
     } catch (error: any) {
@@ -236,6 +241,7 @@ export default function EmployerProfile() {
         </div>
       </div>
 
+      {/* MAIN PROFILE CARD */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
 
         {/* Banner */}

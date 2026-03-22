@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import {
   Briefcase, Users, Star, Plus,
   MoreVertical, ChevronRight, CheckCircle2, Clock, XCircle,
-  X, ImageIcon, Check, Loader2, TrendingUp
+  X, ImageIcon, Check, Loader2
 } from 'lucide-react';
 import { auth } from '../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 export default function EmployerDashboard() {
   const [uid, setUid] = useState<string | null>(null);
@@ -27,7 +26,6 @@ export default function EmployerDashboard() {
 
   const [recentApplicants, setRecentApplicants] = useState<any[]>([]);
   const [activeJobsList, setActiveJobsList] = useState<any[]>([]);
-  const [growthData, setGrowthData] = useState<{ name: string, applicants: number }[]>([]); // <-- Added state for live chart data
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -40,44 +38,6 @@ export default function EmployerDashboard() {
     });
     return () => unsubscribe();
   }, []);
-
-  // --- Helper function to process raw app data into chart format ---
-  const processGrowthData = (apps: any[]) => {
-    const monthCounts: { [key: string]: number } = {};
-    const today = new Date();
-
-    // Initialize the last 6 months with 0 so the chart always looks good
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const monthName = d.toLocaleString('en-US', { month: 'short' });
-      monthCounts[monthName] = 0;
-    }
-
-    // Count actual applicants
-    apps.forEach((app: any) => {
-      if (!app.applied_at) return;
-      const appDate = new Date(app.applied_at);
-
-      // Only count if it's within the last 6 months
-      const diffTime = today.getTime() - appDate.getTime();
-      const diffDays = diffTime / (1000 * 3600 * 24);
-
-      if (diffDays <= 180) { // Approx 6 months
-        const monthName = appDate.toLocaleString('en-US', { month: 'short' });
-        if (monthCounts[monthName] !== undefined) {
-          monthCounts[monthName]++;
-        }
-      }
-    });
-
-    // Convert object back to array for Recharts
-    const chartData = Object.keys(monthCounts).map(month => ({
-      name: month,
-      applicants: monthCounts[month]
-    }));
-
-    setGrowthData(chartData);
-  };
 
   const fetchDashboardData = async (employerUid: string) => {
     try {
@@ -102,9 +62,6 @@ export default function EmployerDashboard() {
         shortlisted: shortCount,
         hired: hiredCount
       });
-
-      // --- Process live chart data here ---
-      processGrowthData(appsData);
 
       const sortedApps = [...appsData].sort((a, b) => new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime());
       const formattedRecent = sortedApps.slice(0, 4).map(app => ({
@@ -145,6 +102,7 @@ export default function EmployerDashboard() {
     }
   };
 
+  // Record system events
   const logSystemEvent = (action: string, details: string) => {
     if (!uid) return;
     fetch('http://localhost:8080/api/audit/log', {
@@ -159,7 +117,10 @@ export default function EmployerDashboard() {
       alert("Please enter a Job Title.");
       return;
     }
+
+    // Log action
     logSystemEvent('Created Job Posting', `Posted new role: "${newJobTitle}" (${allowanceType})`);
+
     alert("Job Posted!");
     setIsModalOpen(false);
     setNewJobTitle('');
@@ -208,7 +169,7 @@ export default function EmployerDashboard() {
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin text-purple-600" size={40} /></div>;
 
   return (
-    <div className="space-y-6 fade-in relative pb-10 max-w-7xl mx-auto">
+    <div className="space-y-6 fade-in relative pb-10">
 
       {/* ADD JOB MODAL */}
       {isModalOpen && (
@@ -306,7 +267,7 @@ export default function EmployerDashboard() {
         </div>
       )}
 
-      {/* Header */}
+      {/* Header  */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Employer Dashboard</h1>
@@ -317,7 +278,7 @@ export default function EmployerDashboard() {
         </button>
       </div>
 
-      {/* STATS */}
+      {/* STATSSSS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, index) => (
           <div key={index} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
@@ -337,63 +298,63 @@ export default function EmployerDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* --- Platform Growth Chart --- */}
-        <div className="lg:col-span-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col">
+        {/*Recent Applicants */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <TrendingUp size={20} className="text-emerald-500" /> Platform Growth
-              </h3>
-              <p className="text-sm text-zinc-500">Applicant volume over the last 6 months.</p>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Recent Applicants</h3>
+              <p className="text-sm text-zinc-500">Candidates who just applied.</p>
             </div>
+            <button onClick={() => window.location.href = '/employer/applicants'} className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 shrink-0">
+              View All <ChevronRight size={14} />
+            </button>
           </div>
-          <div className="flex-1 w-full h-[250px] sm:h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={growthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorApplicants" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#52525b" strokeOpacity={0.2} />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#71717a' }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#71717a' }}
-                />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                  itemStyle={{ color: '#a855f7' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="applicants"
-                  stroke="#8b5cf6"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorApplicants)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+
+          <div className="space-y-3 sm:space-y-4 flex-1">
+            {recentApplicants.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
+                <Users size={32} className="mb-2 opacity-50" />
+                <p className="text-sm font-bold">No applicants yet.</p>
+              </div>
+            ) : (
+              recentApplicants.map((applicant) => (
+                <div
+                  key={applicant.id}
+                  className={`flex items-center justify-between p-3 rounded-2xl transition-colors border ${applicant.status === 'Hired'
+                    ? 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20 shadow-sm'
+                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-transparent hover:border-zinc-100 dark:hover:border-zinc-800'
+                    }`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${applicant.status === 'Hired'
+                      ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
+                      : 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400'
+                      }`}>
+                      {applicant.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white leading-tight truncate">{applicant.name}</h4>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{applicant.role}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
+                    {getStatusBadge(applicant.status)}
+                    <span className="text-[10px] font-medium text-zinc-400">{applicant.time}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         {/* Active Jobs */}
-        <div className="lg:col-span-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Active Postings</h3>
-              <p className="text-sm text-zinc-500">Performance of open roles.</p>
+              <p className="text-sm text-zinc-500">Performance of your open roles.</p>
             </div>
             <button onClick={() => window.location.href = '/employer/jobs'} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 shrink-0">
               <MoreVertical size={20} />
@@ -441,55 +402,6 @@ export default function EmployerDashboard() {
           <button onClick={() => window.location.href = '/employer/jobs'} className="w-full mt-4 py-3 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-sm font-bold text-zinc-500 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-300 dark:hover:border-purple-500/50 transition-colors bg-transparent">
             Manage All Jobs
           </button>
-        </div>
-
-        {/* Recent Applicants */}
-        <div className="lg:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Recent Applicants</h3>
-              <p className="text-sm text-zinc-500">Candidates who just applied to your positions.</p>
-            </div>
-            <button onClick={() => window.location.href = '/employer/applicants'} className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 shrink-0">
-              View All <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
-            {recentApplicants.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-10 text-zinc-400">
-                <Users size={32} className="mb-2 opacity-50" />
-                <p className="text-sm font-bold">No applicants yet.</p>
-              </div>
-            ) : (
-              recentApplicants.map((applicant) => (
-                <div
-                  key={applicant.id}
-                  className={`flex flex-col p-4 rounded-2xl transition-colors border ${applicant.status === 'Hired'
-                    ? 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20 shadow-sm'
-                    : 'bg-zinc-50 dark:bg-zinc-800/30 border-transparent hover:border-zinc-200 dark:hover:border-zinc-700'
-                    }`}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${applicant.status === 'Hired'
-                      ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
-                      : 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400'
-                      }`}>
-                      {applicant.avatar}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white leading-tight truncate">{applicant.name}</h4>
-                      <p className="text-[10px] font-medium text-zinc-400 mt-0.5">{applicant.time}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mb-3 flex-1">{applicant.role}</p>
-                  <div className="mt-auto">
-                    {getStatusBadge(applicant.status)}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </div>
 
       </div>

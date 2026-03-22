@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import {
   Briefcase, Users, Star, Plus,
   MoreVertical, ChevronRight, CheckCircle2, Clock, XCircle,
-  X, ImageIcon, Check, Loader2, TrendingUp
+  X, ImageIcon, Check, Loader2, TrendingUp // Added TrendingUp
 } from 'lucide-react';
 import { auth } from '../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
+// --- Add Recharts Import ---
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 export default function EmployerDashboard() {
@@ -27,7 +28,15 @@ export default function EmployerDashboard() {
 
   const [recentApplicants, setRecentApplicants] = useState<any[]>([]);
   const [activeJobsList, setActiveJobsList] = useState<any[]>([]);
-  const [growthData, setGrowthData] = useState<{ name: string, applicants: number }[]>([]); // <-- Added state for live chart data
+
+  const growthData = [
+    { name: 'Jan', applicants: 40 },
+    { name: 'Feb', applicants: 30 },
+    { name: 'Mar', applicants: 55 },
+    { name: 'Apr', applicants: 45 },
+    { name: 'May', applicants: 80 },
+    { name: 'Jun', applicants: 65 },
+  ];
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -40,44 +49,6 @@ export default function EmployerDashboard() {
     });
     return () => unsubscribe();
   }, []);
-
-  // --- Helper function to process raw app data into chart format ---
-  const processGrowthData = (apps: any[]) => {
-    const monthCounts: { [key: string]: number } = {};
-    const today = new Date();
-
-    // Initialize the last 6 months with 0 so the chart always looks good
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const monthName = d.toLocaleString('en-US', { month: 'short' });
-      monthCounts[monthName] = 0;
-    }
-
-    // Count actual applicants
-    apps.forEach((app: any) => {
-      if (!app.applied_at) return;
-      const appDate = new Date(app.applied_at);
-
-      // Only count if it's within the last 6 months
-      const diffTime = today.getTime() - appDate.getTime();
-      const diffDays = diffTime / (1000 * 3600 * 24);
-
-      if (diffDays <= 180) { // Approx 6 months
-        const monthName = appDate.toLocaleString('en-US', { month: 'short' });
-        if (monthCounts[monthName] !== undefined) {
-          monthCounts[monthName]++;
-        }
-      }
-    });
-
-    // Convert object back to array for Recharts
-    const chartData = Object.keys(monthCounts).map(month => ({
-      name: month,
-      applicants: monthCounts[month]
-    }));
-
-    setGrowthData(chartData);
-  };
 
   const fetchDashboardData = async (employerUid: string) => {
     try {
@@ -102,9 +73,6 @@ export default function EmployerDashboard() {
         shortlisted: shortCount,
         hired: hiredCount
       });
-
-      // --- Process live chart data here ---
-      processGrowthData(appsData);
 
       const sortedApps = [...appsData].sort((a, b) => new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime());
       const formattedRecent = sortedApps.slice(0, 4).map(app => ({
@@ -339,7 +307,7 @@ export default function EmployerDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        {/* --- Platform Growth Chart --- */}
+        {/*Platform Growth Chart*/}
         <div className="lg:col-span-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div>

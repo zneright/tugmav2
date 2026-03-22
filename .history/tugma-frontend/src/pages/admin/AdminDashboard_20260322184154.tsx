@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import {
   Users, Briefcase, Activity,
   TrendingUp, Building2, GraduationCap,
-  Loader2, Send,
-  Server, Cpu, BriefcaseBusiness, RefreshCw
+  MoreVertical, Clock, Loader2, Send,
+  Sparkles, FileText, Server, MapPin, Cpu, BriefcaseBusiness, RefreshCw
 } from 'lucide-react';
+import { auth } from '../../firebaseConfig';
 
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +20,7 @@ export default function AdminDashboard() {
     setIsLoading(true);
     try {
       const statsResponse = await fetch('http://localhost:8080/api/admin/dashboard');
+
       const logsResponse = await fetch('http://localhost:8080/api/admin/audit-logs');
 
       if (statsResponse.ok && logsResponse.ok) {
@@ -39,7 +41,8 @@ export default function AdminDashboard() {
     return <div className="flex justify-center items-center h-[70vh]"><Loader2 className="animate-spin text-purple-600" size={40} /></div>;
   }
 
-  const { stats, topSkills, recentJobs } = data;
+  const { stats, distributions, chartData, topSkills, recentJobs } = data;
+  const maxChartValue = Math.max(...chartData) || 10;
   const totalApps = stats.applications || 1;
 
   const topStats = [
@@ -84,7 +87,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-6 fade-in pb-10 max-w-7xl mx-auto">
+    <div className="space-y-6 fade-in pb-10">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -127,10 +130,39 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        {/* Left Column - Recent Jobs */}
         <div className="lg:col-span-8 flex flex-col gap-6">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm overflow-hidden flex-1">
-            <div className="flex items-center justify-between mb-6">
+
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex flex-col h-80">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Platform Growth</h3>
+                <p className="text-xs text-zinc-500 mt-1">User registration trends over the last 7 days.</p>
+              </div>
+            </div>
+
+            <div className="flex-1 flex items-end gap-2 sm:gap-4 border-b border-zinc-100 dark:border-zinc-800 relative pb-2">
+              {chartData.map((val: number, i: number) => {
+                const heightPercent = (val / maxChartValue) * 100;
+                return (
+                  <div key={i} className="flex-1 flex flex-col justify-end items-center group relative z-10 h-full">
+                    <div
+                      className="w-full max-w-[48px] bg-purple-100 dark:bg-purple-500/20 group-hover:bg-purple-600 dark:group-hover:bg-purple-500 rounded-t-xl transition-all duration-300"
+                      style={{ height: `${Math.max(8, heightPercent)}%` }}
+                    />
+                    <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-bold py-1 px-2 rounded-md transition-opacity pointer-events-none shadow-xl z-20">
+                      {val} Users
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex justify-between mt-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-2 sm:px-4">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                 <BriefcaseBusiness size={18} className="text-purple-500" /> Recent OJT Postings
               </h3>
@@ -146,61 +178,49 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentJobs?.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-zinc-500 text-sm">No recent jobs found.</td>
+                  {recentJobs?.map((job: any, i: number) => (
+                    <tr key={i} className="border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                      <td className="py-3 text-sm font-bold text-zinc-900 dark:text-white">{job.title}</td>
+                      <td className="py-3 text-[13px] font-medium text-zinc-600 dark:text-zinc-300">{job.company_name}</td>
+                      <td className="py-3">
+                        <span className="text-[10px] font-bold px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-md">
+                          {job.work_setup}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <span className="text-[10px] font-black uppercase px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md">Live</span>
+                      </td>
                     </tr>
-                  ) : (
-                    recentJobs?.map((job: any, i: number) => (
-                      <tr key={i} className="border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                        <td className="py-4 text-sm font-bold text-zinc-900 dark:text-white pr-4">{job.title}</td>
-                        <td className="py-4 text-[13px] font-medium text-zinc-600 dark:text-zinc-300 pr-4">{job.company_name}</td>
-                        <td className="py-4 pr-4">
-                          <span className="text-[10px] font-bold px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-md">
-                            {job.work_setup}
-                          </span>
-                        </td>
-                        <td className="py-4 text-right">
-                          <span className="text-[10px] font-black uppercase px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md">Live</span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
 
-        {/* Right Column - Audit Logs, Skills, System Health */}
         <div className="lg:col-span-4 flex flex-col gap-6">
 
-          {/* Recent System Movements */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <Activity size={16} className="text-red-500" /> Recent Movements
+                <Activity size={16} className="text-red-500" /> Recent System Movements
               </h3>
             </div>
 
             <div className="space-y-5">
-              {auditLogs.length === 0 ? (
-                <p className="text-zinc-500 text-sm text-center py-4">No recent activity.</p>
-              ) : (
-                auditLogs.map((log: any) => (
-                  <div key={log.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shrink-0">
-                      {getActivityIcon(log.role)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-snug">
-                        <span className="font-bold text-zinc-900 dark:text-white">{log.user_name}</span> {log.action}
-                      </p>
-                      <p className="text-[10px] font-medium text-zinc-400 mt-1">{formatTime(log.timestamp)}</p>
-                    </div>
+              {auditLogs.map((log: any) => (
+                <div key={log.id} className="flex gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shrink-0">
+                    {getActivityIcon(log.role)}
                   </div>
-                ))
-              )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-snug">
+                      <span className="font-bold text-zinc-900 dark:text-white">{log.user_name}</span> {log.action}
+                    </p>
+                    <p className="text-[10px] font-medium text-zinc-400 mt-1">{formatTime(log.timestamp)}</p>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <button onClick={() => window.location.href = '/admin/reports'} className="w-full mt-6 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-500 dark:text-zinc-400 transition-all">
@@ -214,16 +234,12 @@ export default function AdminDashboard() {
               <Cpu size={16} className="text-amber-500" /> Market Skills Demand
             </h3>
             <div className="flex flex-wrap gap-2">
-              {Object.keys(topSkills || {}).length === 0 ? (
-                <p className="text-zinc-500 text-xs">Not enough data to calculate skills.</p>
-              ) : (
-                Object.entries(topSkills || {}).map(([skill, count]: any) => (
-                  <div key={skill} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-lg">
-                    <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">{skill}</span>
-                    <span className="text-[10px] font-black text-purple-600 dark:text-purple-400">{count}</span>
-                  </div>
-                ))
-              )}
+              {Object.entries(topSkills || {}).map(([skill, count]: any) => (
+                <div key={skill} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-lg">
+                  <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">{skill}</span>
+                  <span className="text-[10px] font-black text-purple-600 dark:text-purple-400">{count}</span>
+                </div>
+              ))}
             </div>
           </div>
 

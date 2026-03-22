@@ -20,11 +20,11 @@ interface EmployerData {
 }
 
 export default function EmployerProfile() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // <-- Initialize navigate function
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); 
   const [uid, setUid] = useState<string | null>(null);
 
   const [newPerk, setNewPerk] = useState('');
