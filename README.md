@@ -98,4 +98,11 @@ npm run dev
 | **AI Engine** | Gemini API | Job matching & ATS scanning |
 | **Storage** | Cloudinary | PDF & Image hosting |
 
-Would you like me to help you draft a **README.md** file based on this content, or perhaps generate a **system architecture diagram** description for your documentation?
+
+Contribution & License
+
+Built by Renz Jericho Buday for Backend development, 
+Nishia Pinlac for Frontend Development,
+Liezl Casabuena for Video Editing and Ideation 
+
+InterCICSkwela Hackathon Challenge 2026.
