@@ -17,7 +17,7 @@ __Backend & Database__
 __Third-Party APIs & Cloud Services__
 - __Firebase:__ Secure User Authentication (Google SSO & Email/Password)
 - __Cloudinary:__ Cloud storage for profile images and resume (PDF) uploads
-- __Gemini API:__ AI engine powering the Smart Job Matchmaker and Employer ATS Resume Scanner
+- __Gemini API:__ AI engine powering the Applicant Scanner, Smart Job Matchmaker and Employer ATS Resume Scanner
 
 ---
 
