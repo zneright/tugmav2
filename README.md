@@ -134,7 +134,7 @@ const firebaseConfig = {
    * Create a free account at [Cloudinary](https://cloudinary.com).
    * Locate your "Cloud Name" on the main dashboard.
    * Navigate to Settings > Upload and create an "Upload Preset" (ensure the signing mode is set to "Unsigned").
-   * Update your configuration file or `.env` with your new credentials:
+   * Update your Student/StudentProfile.tsx:
      ```env
      VITE_CLOUDINARY_CLOUD_NAME="your_cloud_name"
      VITE_CLOUDINARY_UPLOAD_PRESET="your_upload_preset"
